@@ -1,0 +1,193 @@
+% Copyright 2009--2011 by Nico Schlömer
+%
+% This file may be distributed and/or modified
+%
+% 1. under the LaTeX Project Public License and/or
+% 2. under the GNU Public License.
+
+% UA page geometry
+% \geometry{paperheight=7.5in,paperwidth=10.0in}
+% ... Hang on! As suggested in the manual, don't mess around with beamer's
+% assumed page dimensions (128mm x 96mm). Fonts, for example, do no get 
+% automatically scaled and will look tiny if the above is executed.
+% Instead, define a multiplier 12.8/(10.0*2.54) = 64/127 and adjust all
+% respective lengths.
+
+
+% ----------------------------------------------------------------------------
+% *** required packages <<<
+% ----------------------------------------------------------------------------
+\RequirePackage{calc}
+\RequirePackage{ifthen}
+% ----------------------------------------------------------------------------
+% *** END required packages >>>
+% ----------------------------------------------------------------------------
+
+\mode<presentation>
+
+% ----------------------------------------------------------------------------
+% *** DEFINE LENGTHS <<<
+% ----------------------------------------------------------------------------
+\newlength{\margin}
+\setlength{\margin}{0.8832cm}% 0.69in* 64/127 *2.54cm/in
+
+\newlength{\ulogowidth}
+\setlength{\ulogowidth}{3.1136cm}% 0.87in* 64/127 *2.54cm/in
+\newlength{\ulogoheight}
+\setlength{\ulogoheight}{0.90066895151709692cm}% 0.70364761837273193in* 64/127 *2.54cm/in
+\newlength{\ulogopadding}
+% padding = distance from the rightmost point of the logo to where the U starts;
+% value approximately \ulogowidth*0.25
+\setlength{\ulogopadding}{0.2784cm}
+% ----------------------------------------------------------------------------
+% *** END DEFINE LENGTHS >>>
+% ----------------------------------------------------------------------------
+
+
+% ----------------------------------------------------------------------------
+% *** DEFINE IMAGES <<<
+% ----------------------------------------------------------------------------
+\pgfdeclareimage[width=\ulogowidth]{ULogo}{openwall-logo-scaled.png}
+\pgfdeclareimage[width=2cm]{HLogo}{openwall-logo-scaled.png}
+
+% The text logo is a bit of a special case:
+% As given in the PowerPoint(R) slides, the logo is 3.12''x0.36'', the picture file
+% 449px x 52px. However, in the picture file, there is a margin of
+% left: 3px, right: 3px, top: 8px, bottom: 2px.
+% The PDF that we use here does not have any margins, so adapt the sizes here.
+
+  \newlength{\wavewidth}
+  \setlength{\wavewidth}{11.6352cm}% 9.09in* 64/127 *2.54cm/in
+  \newlength{\waveheight}
+  \setlength{\waveheight}{0.7936cm}% 0.62in* 64/127 *2.54cm/in
+  \pgfdeclareimage[width=\wavewidth,height=\waveheight]{uWave}{uabottomwave}
+% ----------------------------------------------------------------------------
+% *** END DEFINE IMAGES <<<
+% ----------------------------------------------------------------------------
+
+
+
+% ----------------------------------------------------------------------------
+% *** HEADLINE <<<
+% ----------------------------------------------------------------------------
+  \newlength{\logotopmargin}%
+  \setlength{\logotopmargin}{0.104cm}%  0.55in* 64/127 *2.54cm/in
+  \defbeamertemplate*{headline}{openwall}%
+  {%
+    % TODO Don't \vskip if the title is too long!
+%    \vfill
+%    \vskip\logotopmargin%
+%    \hskip\margin%
+%      \pgfuseimage{HLogo}%
+  }
+% ----------------------------------------------------------------------------
+% *** END HEADLINE <<<
+% ----------------------------------------------------------------------------
+
+
+
+% ----------------------------------------------------------------------------
+% *** FRAMETITLE <<<
+% ----------------------------------------------------------------------------
+\newlength\frametitletopmargin
+\ifbeamer@compress%
+  \setlength{\frametitletopmargin}{0.384cm}% 0.3in* 64/127 *2.54cm/in
+\else
+  \setlength{\frametitletopmargin}{0.9472cm}% 0.74in* 64/127 *2.54cm/in
+\fi
+
+  \newlength{\frametitlewidth}
+  \setlength{\frametitlewidth}{\textwidth-\ulogowidth-\ulogopadding}
+
+\newcommand{\sectionline}{%
+\vskip\headerskip
+    \vskip 0.1cm
+    % clair
+    {
+        \color{owgrey50}
+        \hrule height 0.5mm
+    }
+    {
+        \color{owgrey}
+        \hrule height 0.5mm
+    }
+%  \hspace{\fill}\rule{\linewidth}{0.5pt}\hspace{\fill}
+}
+\newlength{\headermargin}%
+\setlength{\headermargin}{0.1cm}%
+\newlength{\headerskip}%
+\setlength{\headerskip}{0cm}%
+
+\defbeamertemplate*{frametitle}{openwall}
+{%
+    \nointerlineskip%
+    \begin{beamercolorbox}{frame title}%
+        \vskip 0cm
+        \color{owred50}
+        \insertsectionhead
+        \color{owred}
+        \hfill
+        \insertframetitle
+        \par%
+
+    \end{beamercolorbox}%
+    \sectionline
+}
+% ----------------------------------------------------------------------------
+% *** END FRAMETITLE >>>
+% ----------------------------------------------------------------------------
+
+
+
+% ----------------------------------------------------------------------------
+% *** FOOTLINE <<<
+% ----------------------------------------------------------------------------
+% See the discussion above for the margin (pixel) quirks.
+\newlength{\textlogobottommarginDark}
+% actual bottom margin in the PowerPoint(R) theme: 7.5'' - 6.83'' - 0.36'' + 0.36'' * 2px/52px
+\setlength{\textlogobottommarginDark}{0.41452307692307688cm}% (7.5'' - 6.83'' - 0.36'' + 0.36'' * 2px/52px)* 64/127 *2.54cm/in
+\newcommand\uTextColorPosDark {\pgfpoint{\margin}{\textlogobottommarginDark}}
+
+\newlength{\textlogobottommarginLight}
+% actual bottom margin in the PowerPoint(R) theme: 7.5'' - 6.80'' - 0.36'' + 0.36'' * 2px/52px
+\setlength{\textlogobottommarginLight}{0.45292307692307715cm}% (7.5''-6.80''-0.36''+0.36''*2px/52px)* 64/127 *2.54cm/in
+\newcommand\uTextColorPosLight{\pgfpoint{\margin}{\textlogobottommarginLight}}
+
+\newlength{\logorightmargin}%
+\setlength{\logorightmargin}{12.1344cm}% 9.48in* 64/127 *2.54cm/in
+\newlength{\logobottommargin}%
+\setlength{\logobottommargin}{0.512cm}% 0.4in* 64/127 *2.54cm/in
+\newcommand\posUlogoFoot{\pgfpoint{\logorightmargin}{\logobottommargin}}
+
+\newcommand{\uWavePos}{\pgfpoint{\paperwidth}{0cm}}
+
+% ----------------------------------------------------------------------------
+% *** END of FOOTLINE >>>
+% ---------------------------------------------------------------------------- 
+
+
+% ----------------------------------------------------------------------------
+% *** MARGINS <<<
+% ----------------------------------------------------------------------------
+% set left and right text margins
+\setbeamersize{text margin left=\margin,%
+               text margin right=\margin}
+% ----------------------------------------------------------------------------
+% *** END MARGINS >>>
+% ----------------------------------------------------------------------------
+
+
+
+% ----------------------------------------------------------------------------
+% *** BACKGROUND <<<
+% ----------------------------------------------------------------------------
+%\defbeamertemplate*{background canvas}{openwall}
+%{%
+
+%}
+% ----------------------------------------------------------------------------
+% *** END BACKGROUND <<<
+% ----------------------------------------------------------------------------
+
+\mode
+<all>

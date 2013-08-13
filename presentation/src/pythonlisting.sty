@@ -1,0 +1,60 @@
+% Python listing setup
+
+\usepackage{color}
+\usepackage[procnames]{listings}
+\usepackage{textcomp}
+\usepackage{setspace}
+\usepackage{palatino}
+\renewcommand{\lstlistlistingname}{Code Listings}
+\renewcommand{\lstlistingname}{Code Listing}
+\definecolor{gray}{gray}{0.5}
+\definecolor{green}{rgb}{0,0.5,0}
+\definecolor{lightgreen}{rgb}{0,0.7,0}
+\definecolor{purple}{rgb}{0.5,0,0.5}
+\definecolor{darkred}{rgb}{0.5,0,0}
+\lstnewenvironment{python}[1][]{
+\lstset{
+language=python,
+basicstyle=\ttfamily\setstretch{1},
+stringstyle=\color{green},
+showstringspaces=false,
+alsoletter={1234567890},
+otherkeywords={\ , \}, \{},
+keywordstyle=\color{blue},
+emph={access,and,as,break,class,continue,def,del,elif,else,%
+except,exec,finally,for,from,global,if,import,in,is,%
+lambda,not,or,pass,print,raise,return,try,while,assert,loads,post},
+emphstyle=\color{orange}\bfseries,
+emph={[2]self},
+emphstyle=[2]\color{gray},
+emph={[4]ArithmeticError,AssertionError,AttributeError,BaseException,%
+DeprecationWarning,EOFError,Ellipsis,EnvironmentError,Exception,%
+False,FloatingPointError,FutureWarning,GeneratorExit,IOError,%
+ImportError,ImportWarning,IndentationError,IndexError,KeyError,%
+KeyboardInterrupt,LookupError,MemoryError,NameError,None,%
+NotImplemented,NotImplementedError,OSError,OverflowError,%
+PendingDeprecationWarning,ReferenceError,RuntimeError,RuntimeWarning,%
+StandardError,StopIteration,SyntaxError,SyntaxWarning,SystemError,%
+SystemExit,TabError,True,TypeError,UnboundLocalError,UnicodeDecodeError,%
+UnicodeEncodeError,UnicodeError,UnicodeTranslateError,UnicodeWarning,%
+UserWarning,ValueError,Warning,ZeroDivisionError,abs,all,any,apply,%
+basestring,bool,buffer,callable,chr,classmethod,cmp,coerce,compile,%
+complex,copyright,credits,delattr,dict,dir,divmod,enumerate,eval,%
+execfile,exit,file,filter,float,frozenset,getattr,globals,hasattr,%
+hash,help,hex,id,input,int,intern,isinstance,issubclass,iter,len,%
+license,list,locals,long,map,max,min,object,oct,open,ord,pow,property,%
+quit,range,raw_input,reduce,reload,repr,reversed,round,set,setattr,%
+slice,sorted,staticmethod,str,sum,super,tuple,type,unichr,unicode,%
+vars,xrange,zip,zipfile,extractall,requests,json},
+emphstyle=[4]\color{purple}\bfseries,
+upquote=true,
+morecomment=[s][\color{lightgreen}]{"""}{"""},
+commentstyle=\color{red}\slshape,
+literate={>>>}{\textbf{\textcolor{darkred}{>{>}>}}}3%
+         {...}{{\textcolor{gray}{...}}}3,
+procnamekeys={def,class},
+procnamestyle=\color{blue}\textbf,
+framexleftmargin=1mm, framextopmargin=1mm, frame=shadowbox,
+rulesepcolor=\color{blue},#1
+}}{}
+
