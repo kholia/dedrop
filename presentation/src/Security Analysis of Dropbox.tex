@@ -28,8 +28,9 @@
 
 \begin{frame}
 \frametitle{About Przemysław}
+\myfont
 \begin{itemize}
-\itemsep 3em
+\itemsep 2em
 \item Freelance software developer, Python user
 \item Occasional open-source contributor (LIDS, Postfix, PDNS)
 \item Reverse engineering freak
@@ -39,6 +40,7 @@
 
 \begin{frame}
 \frametitle{About Dhiru}
+\myfont
 \begin{itemize}
 \itemsep 1.2em
 \item dhiru@openwall.com
@@ -46,22 +48,19 @@
 \item Metasploit and Nmap contributor
 \item @DhiruKholia on Twitter
 \item https://github.com/kholia
-\item "john-users" and "john-dev" mailing list
-\item \#openwall channel on Freenode
+\item "john-users" and "john-dev" mailing lists
 \end{itemize}
 \end{frame}
 
 \begin{frame}
 \frametitle{Agenda}
 \begin{itemize}
+\itemsep 1.7em
 \item About Dropbox
 \item Existing Work
 \item Unpack, decrypt and decompile Dropbox
-\item Interesting code snippets
 \item Hijacking Dropbox accounts
-\item Ettercap and Metasploit plug-ins
-\item Bypassing SSL
-\item Dropbox internal API and bypassing 2FA
+\item Bypassing SSL and 2FA
 \item Dropbox OSS client
 \item DEMO :-)
 \end{itemize}
@@ -80,7 +79,7 @@
 
 \item Runs almost anywhere (no Java crap!)
 
-\item Dropbox client, a modified interpreter running obfuscated bytecode.
+\item Dropbox client, a modified interpreter running obfuscated Python bytecode
 \end{itemize}
 \end{frame}
 
@@ -92,7 +91,7 @@
 \item (2012) A Critical Analysis of Dropbox Software Security, Nicolas RUFF and Florian LEDOUX (EADS guys)
 \item EADS guys analyzed versions 1.1.x to 1.5.x. Fails for 1.6.x released in November, 2012.
 \item Mostly kept the "juicy" bits (like source code) to themselves
-\item "dropboxdec" by Hagen Fritsch in 2012, for versions 1.1.x only.
+\item "dropboxdec" by Hagen Fritsch in 2012, for versions 1.1.x only
 \end{itemize}
 \end{frame}
 
@@ -100,12 +99,11 @@
 \frametitle{Earlier reversing techniques}
 %\myfont
 \begin{itemize}
-	\itemsep 0.75em
-	\item pyREtic (Rich Smith, Black Hat / DEFCON 2010) doesn't work for reversing Dropbox since \emph{co\_code} (code object attribute, raw bytecode) can't be accessed anymore at the Python layer.
+	\itemsep 1.8em
+	\item pyREtic (Rich Smith, Black Hat / DEFCON 2010) doesn't work for reversing Dropbox since \emph{co\_code} (code object attribute, raw bytecode) can't be accessed anymore at the Python layer
 	\item Replacing .pyc with .py to control execution doesn't work!
-	\item marshal.dumps is patched too!
-	\item "Reverse Engineering Python Applications" (WOOT '08 paper, Aaron Portnoy) technique doesn't work for the same reason.
-	\item Dropbox is "challenging" to reverse and existing techniques fail.
+	\item "Reverse Engineering Python Applications" (WOOT '08 paper, Aaron Portnoy) technique doesn't work for the same reason
+	\item Dropbox is "challenging" to reverse and existing techniques fail
 \end{itemize}
 \end{frame}
 
@@ -118,7 +116,7 @@
 
 \item py2exe is used for packaging Windows client
 
-\item Python27.dll (customized version) can be extracted from the Dropbox.exe using PE Explorer
+\item Python27.dll (customized version) can be extracted from Dropbox.exe using PE Explorer
 
 \item Dropbox.exe also contains a ZIP of all encrypted PYC files (bytecode)
 \end{itemize}
@@ -157,12 +155,12 @@ f.extractall("pyc_orig")
 %% Przemek's part - decryption
 
 \begin{frame}
-	\frametitle{bytecode (.pyc) decryption}
+	\frametitle{Bytecode (.pyc) decryption}
 \begin{itemize}
 \itemsep 2em
 \item{No human-readable strings in \texttt{.pyc} files - encrypted!}
 \item{\texttt{.pyc} files are simply code objects marshaled (serialized)}
-\item{Analyzed \texttt{Python27.dll(modified Python interpreter)} from the Windows version of Dropbox}
+\item{Analyzed \texttt{Python27.dll} (modified Python interpreter) from the Windows version of Dropbox}
 \item{We found Python's \texttt{r\_object()} (\texttt{marshal.c}) function
 patched to decrypt code objects upon loading}
 \item{Also \texttt{.pyc} magic number was changed - trivial to fix}
@@ -172,21 +170,20 @@ patched to decrypt code objects upon loading}
 \begin{frame}
 \frametitle{.pyc decryption}
 \begin{itemize}
-\itemsep 1.5em
+\itemsep 2em
 \item{To decrypt the buffer \texttt{r\_object()} calls a separate function inside \texttt{Python27.dll}}
 \item{Why not call this decryption function from outside the DLL?}
 \item{Hard-coded address, as it has no symbol attached}
 \item{Unusual calling ABI, inline ASM saves the day!}
 \item{Slightly tricky due to code objects nested recursively}
 \item{No need at all to analyse the encryption algorithm, keys, etc.}
-\item{Around 300 lines of simple C code to get decrypted files}
 \end{itemize}
 \end{frame}
 
 \begin{frame}
 \frametitle{Opcode Remapping}
 \begin{itemize}
-\itemsep 1.5em
+\itemsep 2em
 \item{Valid strings, but \texttt{.pyc} files still fail to load}
 \item{CPython is a simple opcode (1 byte long) interpreter}
 \item{\texttt{ceval.c} is mostly a big \texttt{switch} statement inside a loop}
@@ -197,7 +194,7 @@ patched to decrypt code objects upon loading}
 \end{frame}
 
 \begin{frame}
-\frametitle{bytecode decryption on Linux}
+\frametitle{Bytecode decryption on Linux}
 \myfont
 \begin{itemize}
 \itemsep 1em
@@ -278,7 +275,7 @@ and do simple mapping between two bytecode versions}
 \myfont
 \begin{itemize}
 \itemsep 1em
-\item{Our method is lot shorter, easier and reliable than EADS one}
+\item{Our method is a lot shorter, easier and more reliable than EADS one}
 \item{Around 200 lines of easy C, 350 lines of Python (including marshal code from PyPy)}
 \item{Robust, as we don't even need to deal with decryption ourselves}
 \item{Worked with all versions of Dropbox that we used for testing}
@@ -312,7 +309,7 @@ and do simple mapping between two bytecode versions}
 \begin{itemize}
 \itemsep 2em
 \item Logging is a "protected" developers-only feature
-\item Turning IS\_DEV\_MAGIC on enables debug mode which results in lot of logging output
+\item Turning IS\_DEV\_MAGIC on enables debug mode which results in a lot of logging output
 \item It is possible to externally set this DBDEV environment variable
 \end{itemize}
 \end{frame}
@@ -340,7 +337,7 @@ and do simple mapping between two bytecode versions}
 \frametitle{host\_id (Key Security Item)}
 \begin{itemize}
 \itemsep 1em
-\item Each endpoint registration is associated with a unique, persistent 128-bit secret value called host\_id.
+\item Each endpoint registration is associated with a unique, persistent 128-bit secret value called host\_id
 
 \item Generated by server during installation. Not affected by password changes!
 
@@ -365,7 +362,7 @@ accounts (Derek Newton)
 \item This method is used in dropbox\_creds.rb (Metasploit post module) plug-in
 to hijack Dropbox accounts. \\
  \vspace{1em} {\small https://github.com/rapid7/metasploit-framework/pull/1497}
-\item Fixed after we reported it to Dropbox guys.
+\item Fixed after we reported it to Dropbox guys
 \end{itemize}
 \end{frame}
 
@@ -375,7 +372,7 @@ to hijack Dropbox accounts. \\
 \begin{itemize}
 \itemsep 1em
 \item In addition, host\_id can be extracted from \$HOME/.dropbox/config.dbx (using tools published by EADS guys)
-\item host\_id and the host\_int values can also be extracted from memory of the Dropbox process (more on this later)
+\item host\_id and host\_int can also be extracted from memory of the Dropbox process (more on this later)
 \item host\_int can be "sniffed" from Dropbox LAN sync protocol traffic
 \end{itemize}
 \end{frame}
@@ -397,8 +394,9 @@ to hijack Dropbox accounts. \\
 \myfont
 \begin{itemize}
 \itemsep 2em
-\item What do I do with the host\_id and the host\_int values?
-\item How does the Dropbox client automagically log-on an user to its website from the tray icon?
+\item What do I do with host\_id and host\_int?
+\item How does the Dropbox client automagically log in a user to its website from the tray icon? \\
+\vspace{1em} \includegraphics[scale=0.5]{dbicon.png}
 \item Use the Source, Luke!
 \end{itemize}
 \end{frame}
@@ -427,12 +425,12 @@ print url # :-)
 \frametitle{More host\_int hacks}
 \myfont
 \begin{itemize}
-\itemsep 2em
-\item host\_int is received from the Dropbox server at the very start.
+\itemsep 3em
+\item host\_int is received from the Dropbox server at the very start
 
 \item So can we ask the server for it ?
 
-\item Turns out it is "easy" to do so.
+\item Turns out it is "easy" to do so
 \end{itemize}
 \end{frame}
 
@@ -509,7 +507,7 @@ for obj in objs:
 \item Now it is possible to write an open-source Dropbox client
 \item Dropbox's two factor authentication can be bypassed by using this internal API!
 \item Inject / Use host\_id, bypass 2FA, gain access to Dropbox's website + all data!
-\item host\_id trumps every other security measures!
+\item host\_id trumps all other security measures!
 \end{itemize}
 \end{frame}
 
@@ -530,7 +528,7 @@ for obj in objs:
 \begin{itemize}
 \itemsep 2.4em
 \item Get Dropbox
-\item Extracting and de-compiling bytecode
+\item Extracting and decompiling bytecode
 \item Accounting hijacking (dropbox-jack-v2.py)
 \item Dropbox OSS client
 \end{itemize}
@@ -552,40 +550,40 @@ for obj in objs:
 \frametitle{\# Fun Stuff ;)}
 \begin{itemize}
 \itemsep 1em
-\item http\_authentication.py file contains,
-\item 'fak returned', FakeShit realm="hi"
-\item NTLM realm="your mom", you="suck",
-\item Digest realm='"hi", Shit"'
-\item There actually is a file named "ultimatesymlinkresolver.py"
-\item Can't really say what is so "ultimate" about resolving symlinks ;)
+\item http\_authentication.py file contains: \\
+  \vspace{1em} 'fak returned', FakeShit realm="hi" \\
+  \vspace{1em} NTLM realm="your mom", you="suck", \\
+  \vspace{1em} Digest realm='"hi", Shit"' \\
+\item There actually is a file named "ultimatesymlinkresolver.py" \\
+  \vspace{1em} Can't really say what is so "ultimate" about resolving symlinks ;)
 \item Dropbox runs nginx, "nginx/1.2.7"
 \end{itemize}
 \end{frame}
 
 \begin{frame}
 \frametitle{Questions \& Discussion}
-\myfont
+\includegraphics[scale=0.16]{openwall-logo.png}
 \begin{itemize}
 \itemsep 2em
-\item Are the obfuscation measures helping Dropbox and their users?
-\item Is this "arms-race" going to stop?
-\item Your questions!
+\item Are the obfuscation measures helping Dropbox and their users? Is this "arms-race" going to stop?
+\item \bf{Dhiru Kholia (dhiru@openwall.com)}
+\item \bf{Przemysław Węgrzyn (pwegrzyn@codepainters.com)}
 \end{itemize}
 \end{frame}
 
 \begin{frame}
 \frametitle{\# Thanks!}
 \begin{itemize}
-\itemsep 2em
-\item Solar Designer and Openwall for the funding, guidance and many other things!
+\itemsep 2.3em
 \item Openwall folks, my colleagues at work, anonymous reviewers and friends
 for their invaluable feedback and encouragement
 \item Hagen Fritsch for showing that automated opcode mapping recovery is
 possible
 \item EADS guys and wibiti for their work on uncompyle2
+
+\item Dropbox for being so awesome!
 \end{itemize}
 \end{frame}
-
 
 \begin{frame}
 \frametitle{Thanks!}

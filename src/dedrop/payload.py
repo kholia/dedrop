@@ -384,7 +384,7 @@ if blob_path:
         mode = "r"
 
         print "\n:) :) :) Having Fun Yet?\n\n"
-        time.sleep(8)
+        time.sleep(2)
 
         f = zipfile.PyZipFile(blob_path, mode, zipfile.ZIP_DEFLATED)
         # base_path = os.path.dirname(blob_path)
