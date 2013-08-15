@@ -233,7 +233,7 @@ patched to decrypt code objects upon loading}
 \end{frame}
 
 \begin{frame}
-\frametitle{\# Solving Opcode Mapping}
+\frametitle{Solving Opcode Mapping}
 \begin{itemize}
 \itemsep 2em
 \item{Opcode mapping was recovered manually initially}
@@ -301,7 +301,7 @@ and do simple mapping between two bytecode versions}
 \end{frame}
 
 \begin{frame}[fragile]
-\frametitle{\# Interesting code snippets}
+\frametitle{Interesting code snippets}
 \begin{python}
     IS_DEV_MAGIC = DBDEV and hashlib.md5(DBDEV)
         .hexdigest().startswith('c3da6009e4')
@@ -315,7 +315,7 @@ and do simple mapping between two bytecode versions}
 \end{frame}
 
 \begin{frame}[fragile]
-\frametitle{\# Cracking partial MD5 hash}
+\frametitle{Cracking partial MD5 hash}
 \begin{itemize}
 \itemsep 1.8em
 \item Wrote JtR plug-in for cracking the partial hash
@@ -354,7 +354,7 @@ accounts (Derek Newton)
 \end{frame}
 
 \begin{frame}
-\frametitle{\# Hijacking accounts using logs!}
+\frametitle{Hijacking accounts using logs!}
 \myfont
 \begin{itemize}
 \itemsep 1em
@@ -378,7 +378,7 @@ to hijack Dropbox accounts. \\
 \end{frame}
 
 \begin{frame}
-\frametitle{\# LAN sync protocol + host\_int sniffing}
+\frametitle{LAN sync protocol + host\_int sniffing}
 \begin{itemize}
 \itemsep 2em
 \item host\_int can be "sniffed" from Dropbox's LAN sync protocol traffic (but this protocol can be disabled by the user)
@@ -512,7 +512,7 @@ for obj in objs:
 \end{frame}
 
 \begin{frame}
-\frametitle{\# Challenges / Future Work}
+\frametitle{Challenges / Future Work}
 \begin{itemize}
 \itemsep 2em
 \item "export DBDEV=a2y6shya" trick is patched in 2.0.0 (current stable release). Dropbox guys now check full hash value.
@@ -547,7 +547,7 @@ for obj in objs:
 \end{frame}
 
 \begin{frame}
-\frametitle{\# Fun Stuff ;)}
+\frametitle{Fun Stuff ;)}
 \begin{itemize}
 \itemsep 1em
 \item http\_authentication.py file contains: \\
@@ -572,7 +572,7 @@ for obj in objs:
 \end{frame}
 
 \begin{frame}
-\frametitle{\# Thanks!}
+\frametitle{Thanks!}
 \begin{itemize}
 \itemsep 2.3em
 \item Openwall folks, my colleagues at work, anonymous reviewers and friends

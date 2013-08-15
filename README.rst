@@ -29,8 +29,6 @@ Credits
 
   - https://github.com/Mysterie/uncompyle2
 
-*
-
 TODO
 ====
 
