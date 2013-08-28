@@ -1,0 +1,518 @@
+1
+=
+
+Hi, my name is Dhiru Kholia and I am GOING TO TALK ABOUT Dropbox security
+today.
+
+2
+=
+
+
+I will start BY INTRODUCING my co-author, Czajnik (Tschay-nick).
+
+Czajnik is a polish guy with a very hard-to-say name.
+
+Czajnik loves Python and he is simply awesome at reversing stuff!
+
+3
+=
+
+Next, a bit about me.
+
+I AM A DEVELOPER for various open-source security projects like JtR, Ettercap
+and hashkill .. and like everybody else I am on Twitter.
+
+OK, I think, this is enough as far as introductions go.
+
+4
+=
+
+So, here is the agenda of my talk today.
+
+I will start with an introduction to Dropbox, WHICH I believe requires no
+introduction, right?
+
+Next, I will briefly cover existing security work related to Dropbox.
+
+THEN, we will dive right into reversing Dropbox, from scratch and in detail.
+
+This reversing step is foundational and IT ALLOWED US to *DO*, LOT of fun stuff,
+LATER ON, *LIKE*, hijacking Dropbox accounts, bypassing two-factor authentication,
+bypassing SSL entirely and also writing an open-source portable Dropbox client.
+
+Our MAIN MOTIVATION and aim is to open up the Dropbox platform to further
+security analysis and research. Dropbox should no longer be a black box.
+
+Also, there will be a demo towards the end of this talk.
+
+5
+=
+
+OK, So, what is Dropbox?
+
+Dropbox is the LEADING CLOUD-based file storage SERVICE WITH more than 175
+million users.
+
+Dropbox runs ALMOST EVERYWHERE and most of the Dropbox clients are written
+mostly in PYTHON!
+
+WELL, thank god that no Java is involved here!
+
+The Dropbox client, SIMPLY, is a modified Python interpreter running obfuscated
+Python bytecode. Unfortunately, no source code or API documentation is
+available for these clients.
+
+6
+=
+
+DUE to its popularity, Dropbox has been A TARGET OF MULTIPLE reversing
+attempts already!
+
+The most recent attempt, at analyzing Dropbox security, was made by Nicolas and
+Florian (the EADS guys) in 2012.
+
+Unfortunately, their techniques are not generic enough to deal with the
+frequently changing bytecode encryption method being used by Dropbox.
+
+7
+=
+
+Going back a bit, we find this very cool project called pyREtic which tries to
+dump bytecode directly FROM THE MEMORY to the disk.
+
+Unfortunately, this technique does not work against Dropbox because the raw
+bytecode is not accessible ANYMORE, at the Python layer of Dropbox!
+
+In short, Dropbox is somewhat challenging to reverse and existing techniques
+fail.
+
+8
+=
+
+OK, lets get started with reversing Dropbox, the proper way!
+
+On Windows, an open-source project, named py2exe is used for packaging up the
+Dropbox source code into an executable file called Dropbox.exe
+
+It is possible to extract the embedded custom Python interpreter AND ALL THE
+bytecode from this executable by using standard tools.
+
+9
+=
+
+Coming to the Linux side, another open-source project, named bbFreeze is (mostly
+likely) used for packaging. bbFreeze uses static LINKING WHICH makes reversing
+somewhat harder.
+
+I will DESCRIBE HOW WE solve this problem later on.
+
+10
+==
+
+ONE OF THE basic steps involved in the reversing process is unpacking the
+application.
+
+Fortunately, unpacking Dropbox is trivial as we can use the standard "zip"
+command or the code shown on the screen, in order to extract all the bytecode
+from the Dropbox executable.
+
+11
+==
+
+Once you have extracted the .pyc files (which contain the bytecode), you will
+find that, they don't have any human-readable strings, which is QUITE UNUSUAL
+
+THIS INDICATES THAT some obfuscation or encryption is being employed by Dropbox
+to protect their bytecode.
+
+To understand this obfuscation process, we analyzed the extracted Python DLL
+file, in IDA Pro.
+
+Soon enough, we found out that one of the BYTECODE UN-MARSHALLING functions had
+been PATCHED, TO DECRYPT the encrypted byte-code during the import (or loading)
+process.
+
+12
+==
+
+This patched UN-marshalling function calls a separate "decryption" FUNCTION
+INSIDE the Python DLL file. So, in oder to get DECRYPTION FOR FREE, we hit upon
+the idea of calling this decryption function DIRECTLY, from outside the DLL, to
+do the decryption for us.
+
+... AND IN DOING SO, we are able to bypass this obfuscation step completely.
+There is NO NEED TO ANALYZE the FREQUENTLY CHANGING bytecode encryption and
+decryption algorithms AT ALL.
+
+13
+==
+
+OK ... after the decryption process is complete, we can see the expected
+human-readable strings in the decrypted bytecode files.
+
+However, these decrypted .pyc files still fail to load under the standard
+Python.
+
+After some more analysis, we found out that the Dropbox guys had patched
+the Python opcode evaluator to use different opcode values.
+
+INITIALLY, WE recovered this opcode mapping manually but it turned out to be
+somewhat time-consuming.
+
+... but the good news is that we can NOW recover this opcode mapping in a fully
+automated fashion.
+
+For details, please see our updated paper.
+
+14
+==
+
+Coming to the Linux side, bytecode decryption is somewhat more challenging as
+everything is statically linked into a single binary.
+
+In order to solve this problem, we hit upon the idea of LOADING the encrypted
+.pyc files from the disk into the memory and serializing them back to the disk.
+
+However, in order to enable this whole bytecode LOADING business, we need to
+gain control over the execution flow of the Dropbox process, FIRST, right?
+
+15
+==
+
+... AND in order to gain control over the control flow, we rely on standard
+techniques like LD_PRELOAD and Reflective DLL injection.
+
+Once we have gained control over the Dropbox process, we can do whatever we
+want, LIKE, RUN NEW injected code.
+
+16
+==
+
+From this injected code, WE THEN, call another OFFICIAL un-marshalling
+function, which, loads and ALSO DECRYPTS, the encrypted bytecode from the disk
+into the memory.
+
+17
+==
+
+SKIP!
+
+18
+==
+
+AT THIS POINT, we have defeated bytecode encryption and opcode shuffling as
+well ... and now ... we want to serialize the "fixed" bytecode, which is in
+memory, back to the disk. However this "fixed" bytecode stream is not visible
+at the Python layer and also its offset is not known at the C layer.
+
+We were able to solve the offset problem by doing some clever memory scanning.
+Once that is done, we then re-expose this bytecode stream back to the Python
+layer.
+
+19
+==
+
+After trying to serialize the fixed bytecode stream back to the disk (at the
+Python layer), we found out that, object marshalling HAD BEEN stripped from the
+Dropbox's VERSION OF THE Python interpreter.
+
+We solve this problem by borrowing an alternate marshalling module from the
+PyPy project.
+
+We inject this marshalling module into the Dropbox process and are then able to
+dump the fixed bytecode back to the disk.
+
+20 (SUMMARY!)
+=============
+
+In summary, our techniques are a lot shorter, easier and more reliable than the
+earlier ones ... and we are able to reverse all Dropbox versions, including
+version 2.3.19 (which is the latest as of today!).
+
+21
+==
+
+OK, we now have the proper Python bytecode files and we need to decompile them
+to get the source-code back ...
+
+... and for doing this, we rely on the excellent uncompyle2 project. uncompyle2
+is super easy to use and it works great!
+
+...
+
+All right, we now have ALL THE SOURCE-CODE, FOR THE Dropbox client!
+
+After READING THROUGH THIS this source-code, we found some interesting THINGS
+WHICH I AM GOING TO DISCUSS NOW.
+
+22
+==
+
+SKIP!
+
+23
+==
+
+SKIP!
+
+
+24
+==
+
+The most important thing I want to talk about is host_id.
+
+host_is is THE "Key Security item" in the Dropbox universe.
+
+EACH Dropbox client is associated with a unique, persistent 128-bit secret
+value called host_id.
+
+host_id is generated on the server side during the Dropbox client installation
+and is not affected by password changes at all.
+
+In very old Dropbox versions, host_id was stored in clear-text and knowing this
+host_id value ALONE was enough to hijack Dropbox accounts.
+
+Now-a-days this host_id value is now in an encrypted fashion and IS QUITE well
+protected. Also, we need to know another value called "host_int", in order to
+hijack accounts.
+
+25
+==
+
+SKIP!
+
+26
+==
+
+It is possible to to extract host_id value from the encrypted Dropbox database
+and also from the memory of the Dropbox process.
+
+Similarly, host_int can be extracted from the Dropbox memory and it can also be
+sniffed from the Dropbox LAN sync protocol traffic.
+
+27
+==
+
+XXX
+
+28
+==
+
+OK, at this point, let's assume that, WE SOMEHOW have both the values, the
+host_id and the host_int.
+
+From these two values, how can we gain access to the corresponding Dropbox
+account?
+
+... OK ...
+
+To answer that, we SIMPLY use the EXACT same mechanism THAT Dropbox uses for
+it's auto-login process!
+
+29
+==
+
+In order generate those "auto-login" URLs, Dropbox uses the code shown on the
+screen.
+
+As you can see, an attacker only needs to know two values, the host_id and the
+host_int, in order to hijack the corresponding Dropbox account!
+
+30
+==
+
+OK, moving on to something more interesting now ...
+
+So far, we have seen that we, require two values, host_id and host_int, in
+order to hijack Dropbox accounts.
+
+host_id is stored locally (we have seen that already) but HOST_INT is NOT
+stored locally AT ALL. So it is logical to assume that the host_int value is
+received from the Dropbox server itself.
+
+So the question is can we do the same? Can we ask the Dropbox server itself for
+this host_int value?
+
+It turns out that it is easy to do so.
+
+31
+==
+
+This code snippet shows that, in order to fetch this host_int value from the
+server, we only need to know the host_id value.
+
+IN SHORT, we have *again* reduced the security of the whole Dropbox ecosystem
+to a single secret value, the host_id.
+
+If you have the host_id, you have everything as far as Dropbox is concerned.
+
+32
+==
+
+OK, here is something to think about.
+
+Dropbox uses SSL.
+
+... so ... how did we manage to figure out all these internal API calls?
+
+33
+==
+
+
+and to answer that ... say HELLO to our friends again! LD_PRELOAD and
+Reflective DLL injection.
+
+In short, we find and patch all SSL objects in the Dropbox memory, IN ORDER to
+look at the "secret" SSL traffic.
+
+We can also use this same technique, to steal host_id, host_int or whatever we
+want.
+
+34
+==
+
+THIS CODE SNIPPET shows how we are able to patch or snoop on all python
+objects.
+
+We FIRST get references to all Python objects from the garbage collector and
+then we probe these objects for the desired attributes like host_id and
+host_int.
+
+It is a simple technique but is quite effective in practice.
+
+35
+==
+
+After bypassing SSL, we were able to figure out the internal API being used
+by the Dropbox clients.
+
+One of the more surprising things we found OUT, IS THAT, the Dropbox’s two
+factor authentication can be bypassed ENTIRELY by using this internal API!
+
+By using the host_id value along with this internal API, we can gain access to
+all the data and to the Dropbox website ... EVEN for an account with 2FA
+enabled!
+
+ONCE AGAIN, THE ENTIRE SECURITY of the Dropbox ecosystem relies on a single
+secret value, called the host_id.
+
+SKIP 36
+=======
+
+OK. Here are some of the current challenges we are facing and also some of the
+things we would like to work on.
+
+Activating logging in Dropbox client now requires cracking a full SHA256 hash
+which is shown on the screen. Give it a try if you are feeling VERY LUCKY!
+
+Another challenge is to run Dropbox client from the recovered "sources".  We
+are working on it and have made decent progress, so far.
+
+37
+==
+
+OK. It's DEMO time now!
+
+I have already downloaded the latest version of the Dropbox client from the
+Dropbox forums. (it's here).
+
+OK, we will NOW install the Dropbox client ... (OK, DONE)
+
+Now I will decrypt the encrypted bytecode files ...
+
+...
+
+I am using the LD_PRELOAD feature here to inject my library into the Dropbox
+process.
+
+... OK, our injected code has written the decrypted bytecode files back to the
+disk.
+
+OK ... Let's decompile some of these recovered bytecode files.
+
+For decompiling the bytecode files, I am using uncompyle2 which is
+awesome and super-easy to use.
+
+...
+
+$ uncompyle2 md5.pyc
+
+$ uncompyle2 abc.pyc
+
+As you can see, we can recover the source-code for any file we want.
+
+...
+
+OK, now I will show, how to gain access to a Dropbox account website by using
+the corresponding host_id and host_int values.
+
+I am trying to login to an account with 2FA enabled. As expected, Dropbox
+prevents me from logging on.
+
+OK, NOW, let's run this nice script we have here named "Dropbox jack" and running
+it generates a fresh "auto-login" URL for us.
+
+Clicking on that URL, automagically, logs-us-on to the Dropbox account website.
+
+As you can see, we have successfully bypassed 2FA here!
+
+...
+
+OK. Now, lets take a look at the open-source Dropbox client we have written. It
+modelled after the "ftp" command and it is currently just a proof-of-concept.
+
+Running "ls" will show you the files present in the Dropbox account and you can
+also upload files by using the "put" command.
+
+... OK ...
+
+All this is cool stuff BUT I THINK THAT THE best part about our RESEARCH ...
+
+38
+==
+
+... is that everything is open-source!
+
+You can get all the good stuff from my GitHub repository named "dedrop".
+
+
+40
+==
+
+OK, it is time for questions now. Here are some of the general questions I
+myself have.
+
+Please ask your questions now.
+
+...
+
+...
+
+...
+
+(4 minutes)
+
+
+SKIP XXX 39
+===========
+
+
+41
+==
+
+Now coming to the most important part ...
+
+I would like to thank Solar Designer and Openwall guys for everything.
+
+My colleagues at work, anonymous reviewers and friends provided invaluable
+feedback and encouragement. Thank you guys!
+
+Next, I would like to thank Hagen Fritsch, wibiti and EADS guys for all the
+technical help.
+
+42
+==
+
+Finally, I would like to thank you all for attending this talk!
+
+Thanks!

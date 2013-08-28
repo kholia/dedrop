@@ -3,6 +3,13 @@ Looking inside the (Drop) box
 
 Security Analysis of Dropbox.
 
+"Upstream" Resources
+====================
+
+- https://www.usenix.org/looking-inside-drop-box
+
+  (includes video now!)
+
 Dependencies (for paper)
 ========================
 
