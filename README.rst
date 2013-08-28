@@ -3,6 +3,11 @@ Looking inside the (Drop) box
 
 Security Analysis of Dropbox.
 
+Web-based Presentation
+======================
+
+- http://www.openwall.com/presentations/WOOT13-Security-Analysis-of-Dropbox/
+
 "Upstream" Resources
 ====================
 
