@@ -15,6 +15,49 @@ Web-based Presentation
 
   (includes video now!)
 
+Reversing Dropbox
+=================
+
+1. Download Dropbox and "install" it.
+
+   ::
+
+      $ cd ~
+
+      $ wget https://dl-web.dropbox.com/u/17/dropbox-lnx.x86_64-2.3.22.tar.gz
+
+      $ tar -xzf dropbox-lnx.x86_64-2.3.22.tar.gz
+
+2. Build "dedrop". Switch to this repository and do,
+
+   ::
+
+      $ cd src/dedrop
+
+      $ make
+
+      $ cp libdedrop.so ~
+
+3. Use LD_PRELOAD and inject libdedrop.so into Dropbox.
+
+   ::
+
+      $ cd ~
+
+      $ export BLOB_PATH=.dropbox-dist/dropbox
+
+      $ LD_PRELOAD=`pwd`/libdedrop.so .dropbox-dist/dropbox
+
+4. De-compile the "fixed" bytecode files.
+
+   ::
+
+      $ uncompyle2 pyc_decrypted/client_api/hashing.pyc
+      ...
+
+5. Study the soure-code, find bugs and make Dropbox better!
+
+
 Dependencies (for paper)
 ========================
 
