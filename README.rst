@@ -24,9 +24,9 @@ Reversing Dropbox
 
       $ cd ~
 
-      $ wget https://dl-web.dropbox.com/u/17/dropbox-lnx.x86_64-2.3.22.tar.gz
+      $ wget https://dl-web.dropbox.com/u/17/dropbox-lnx.x86_64-2.4.1.tar.gz
 
-      $ tar -xzf dropbox-lnx.x86_64-2.3.22.tar.gz
+      $ tar -xzf dropbox-lnx.x86_64-2.4.1.tar.gz
 
 2. Build "dedrop". Switch to this repository and do,
 
