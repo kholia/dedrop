@@ -24,7 +24,7 @@ Reversing Dropbox
 
       $ cd ~
 
-      $ export DROPBOX_VERSION="dropbox-lnx.x86_64-3.1.265"
+      $ export DROPBOX_VERSION="dropbox-lnx.x86_64-3.6.8"
 
       $ wget -c https://dl-web.dropbox.com/u/17/$DROPBOX_VERSION.tar.gz
 
