@@ -1,3 +1,3 @@
-"ssljack" will be merged upstream soon!
+"ssljack" has been merged upstream now!
 
 https://github.com/DynamoRIO/dynamorio/tree/master/api/samples

@@ -24,7 +24,7 @@ Reversing Dropbox
 
       $ cd ~
 
-      $ export DROPBOX_VERSION="dropbox-lnx.x86_64-3.6.8"
+      $ export DROPBOX_VERSION="dropbox-lnx.x86_64-3.12.4"
 
       $ wget -c https://dl-web.dropbox.com/u/17/$DROPBOX_VERSION.tar.gz
 
@@ -86,6 +86,13 @@ Credits
   - https://github.com/wibiti/uncompyle2
 
   - https://github.com/Mysterie/uncompyle2
+
+Resources
+=========
+
+* http://sourceforge.net/projects/easypythondecompiler
+
+* https://github.com/MyNameIsMeerkat/pyREtic
 
 TODO
 ====
