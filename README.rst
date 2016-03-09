@@ -24,7 +24,7 @@ Reversing Dropbox
 
       $ cd ~
 
-      $ export DROPBOX_VERSION="dropbox-lnx.x86_64-3.12.4"
+      $ export DROPBOX_VERSION="dropbox-lnx.x86_64-3.14.7"
 
       $ wget -c https://dl-web.dropbox.com/u/17/$DROPBOX_VERSION.tar.gz
 
@@ -98,7 +98,7 @@ TODO
 ====
 
 * Find alternatives to "tray_login" method since it is going to be patched
-  soon.
+  soon. This is now redundant since Dropbox client now uses 2FA properly.
 
 * "While your submission was interesting, there has been other research on
   similar topics. There is nothing wrong with talking about the same topic more
