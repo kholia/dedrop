@@ -133,8 +133,8 @@ extern "C" {
 
 #define MAKE_CLOSURE    134     /* #free vars */
 #define LOAD_CLOSURE    135     /* Load free variable from closure */
-#define LOAD_DEREF      136     /* Load and dereference from closure cell */ 
-#define STORE_DEREF     137     /* Store into cell */ 
+#define LOAD_DEREF      136     /* Load and dereference from closure cell */
+#define STORE_DEREF     137     /* Store into cell */
 
 /* The next 3 opcodes must be contiguous and satisfy
    (CALL_FUNCTION_VAR - CALL_FUNCTION) & 3 == 1  */

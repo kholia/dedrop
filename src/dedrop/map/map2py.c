@@ -21,9 +21,9 @@ int main()
              printf(", ");
          }
          if (i > 0 && i % 8 == 0) {
-             printf("\n    ");    
+             printf("\n    ");
          }
-    } 
+    }
     printf("}\n");
 
     return 0;

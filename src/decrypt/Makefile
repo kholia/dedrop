@@ -9,13 +9,13 @@ OBJS=src\decrypt.o src\buffer.o
 EXE=bin\decrypt.exe
 
 all: $(EXE)
-	
+
 $(EXE): $(OBJS)
 	-mkdir bin
 	$(CC) -O0 -g3 -o $(EXE) $(OBJS)
-	
+
 %.o: %.c
-	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@	
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 clean:
 	del $(EXE)

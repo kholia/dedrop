@@ -18,15 +18,15 @@ Web-based Presentation
 Reversing Dropbox
 =================
 
-1. Download Dropbox and "install" it.
+1. Download Dropbox and extract it.
 
    ::
 
       $ cd ~
 
-      $ export DROPBOX_VERSION="dropbox-lnx.x86_64-3.14.7"
+      $ export DROPBOX_VERSION="dropbox-lnx.x86_64-23.4.19"
 
-      $ wget -c https://dl-web.dropbox.com/u/17/$DROPBOX_VERSION.tar.gz
+      $ wget -c "https://www.dropbox.com/download?plat=lnx.x86_64" -O $DROPBOX_VERSION.tar.gz
 
       $ tar -xzf $DROPBOX_VERSION.tar.gz
 
@@ -54,7 +54,7 @@ Reversing Dropbox
 
    ::
 
-      $ uncompyle2 pyc_decrypted/client_api/hashing.pyc
+      $ uncompyle6 pyc_decrypted/client_api/hashing.pyc
       ...
 
 5. Study the soure-code, find bugs and make Dropbox better!
@@ -90,7 +90,7 @@ Credits
 Resources
 =========
 
-* http://sourceforge.net/projects/easypythondecompiler
+* https://github.com/rocky/python-uncompyle6
 
 * https://github.com/MyNameIsMeerkat/pyREtic
 

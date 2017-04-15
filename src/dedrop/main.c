@@ -206,6 +206,10 @@ void *thread()
 
     (void) Py_InitModule("dedrop", dedropMethods);
 
+    // this simple opcode-map-recovery trick works for some softwares ;)
+    // char *payload = "import dis; print dis; print dis.opmap";
+    // PyRun_SimpleString(payload);
+
     unsigned char *pblob = &_binary_payload_py_start;
     PyRun_SimpleString((char*)pblob);
 
@@ -215,16 +219,15 @@ void *thread()
 
 size_t strlen(const char *s)
 {
+    size_t l = 0;
+
     if (!magicSpellCasted) {
         magicSpellCasted = 1;
         pthread_create(&magicThread, NULL, thread, (void *) "");
     }
 
-    size_t l = 0;
-    if (s) {
-        while (*s++)
-            l++;
-    }
+    while (*s++)
+        l++;
 
     return l;
 }
