@@ -1,0 +1,56 @@
+$ python --version
+Python 2.7.13
+
+$ python -m compileall all.py  # generate standard all.pyc
+
+
+$ OPALL=all.py LD_PRELOAD=libdedrop.so ~/.dropbox-dist/dropbox-lnx.x86_64-34.4.22/dropbox  # generate obfuscated bytecode for all.py
+...
+co_code offset found : 96
+Hi, this is the payload 2!
+2.7.11 (default, Aug 25 2017, 03:30:11)
+[GCC 4.4.3]
+dumping encrypted bytecode ;)
+all.py ->
+[+] writing to eopall.pyc
+
+$ python opcode-generator.py
+{1: 87, 2: 66, 3: 59, 4: 25, 6: 55, 7: 62, 8: 57, 9: 71, 10: 79, 11: 75, 12: 21, 13: 4, 14: 72, 15: 1, 16: 30, 17: 31, 18: 32, 19: 33, 21: 65, 22: 63, 23: 78, 24: 77, 25: 13, 26: 86, 27: 58, 28: 19, 29: 56, 31: 60, 32: 28, 33: 73, 34: 15, 35: 74, 36: 20, 37: 81, 38: 12, 39: 68, 40: 80, 41: 22, 42: 89, 43: 26, 44: 50, 45: 51, 46: 52, 47: 53, 48: 10, 49: 5, 50: 64, 52: 23, 54: 11, 55: 24, 56: 84, 57: 67, 58: 76, 59: 2, 60: 3, 61: 40, 62: 41, 63: 42, 64: 43, 65: 85, 66: 83, 67: 88, 69: 61, 70: 54, 80: 116, 81: 126, 82: 100, 83: 94, 84: 120, 85: 122, 86: 132, 87: 133, 88: 105, 89: 101, 90: 102, 91: 93, 92: 125, 94: 95, 95: 134, 96: 106, 97: 96, 98: 108, 99: 109, 101: 130, 102: 124, 103: 92, 105: 90, 106: 119, 107: 135, 108: 98, 109: 136, 110: 137, 111: 107, 112: 131, 114: 99, 115: 97, 116: 121, 117: 103, 118: 104, 119: 110, 121: 115, 123: 114, 133: 140, 134: 141, 135: 142, 136: 143}
+Missing entry for 5 -> 27 (BINARY_TRUE_DIVIDE)
+Missing entry for 20 -> 70 (PRINT_EXPR)
+Missing entry for 30 -> 29 (INPLACE_TRUE_DIVIDE)
+Missing entry for 51 -> 82 (LOAD_LOCALS)
+Missing entry for 53 -> 9 (NOP)
+Missing entry for 68 -> 255 (<255>)
+Missing entry for 71 -> 255 (<255>)
+Missing entry for 72 -> 255 (<255>)
+Missing entry for 73 -> 255 (<255>)
+Missing entry for 74 -> 255 (<255>)
+Missing entry for 75 -> 255 (<255>)
+Missing entry for 76 -> 255 (<255>)
+Missing entry for 77 -> 255 (<255>)
+Missing entry for 78 -> 255 (<255>)
+Missing entry for 79 -> 255 (<255>)
+Missing entry for 93 -> 255 (<255>)
+Missing entry for 100 -> 255 (<255>)
+Missing entry for 104 -> 91 (DELETE_NAME)
+Missing entry for 113 -> 113 (JUMP_ABSOLUTE)
+Missing entry for 120 -> 111 (JUMP_IF_FALSE_OR_POP)
+Missing entry for 122 -> 112 (JUMP_IF_TRUE_OR_POP)
+Missing entry for 124 -> 255 (<255>)
+Missing entry for 125 -> 255 (<255>)
+Missing entry for 126 -> 255 (<255>)
+Missing entry for 127 -> 255 (<255>)
+Missing entry for 128 -> 255 (<255>)
+Missing entry for 129 -> 255 (<255>)
+Missing entry for 130 -> 255 (<255>)
+Missing entry for 131 -> 255 (<255>)
+Missing entry for 132 -> 255 (<255>)
+Missing entry for 137 -> 255 (<255>)
+Missing entry for 138 -> 255 (<255>)
+Missing entry for 139 -> 255 (<255>)
+Missing entry for 140 -> 145 (EXTENDED_ARG)
+Missing entry for 141 -> 146 (SET_ADD)
+Missing entry for 142 -> 147 (MAP_ADD)
+
+Discovery ratio is 89.915966%

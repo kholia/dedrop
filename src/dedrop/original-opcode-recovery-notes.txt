@@ -1,0 +1,18 @@
+Q: How did you reveal the opcode mapping originally?
+
+A: Well, that was the most time consuming part (a few hours of work).
+
+   The procedure was more or like:
+
+   - Take Python\ceval.c, look for PyEval_EvalFrameEx(...) - this is the main
+     Python opcode interpreter function. It is fairly simple in principle (one
+     big switch with 'case' for each opcode).
+
+   - Locate the same function in IDA Pro (there are some error messages that
+     make it easy).
+
+   - Match every opcode 'case' branch with corresponding code in assembly.
+
+   - When you know which piece of code handles which operation, you can easily
+     recover the mapping (IDA Pro is quite smart dealing with compiled
+     'switch').

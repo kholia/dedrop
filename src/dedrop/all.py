@@ -7,9 +7,13 @@
 
 # based on http://unpyc.sourceforge.net/Opcodes.html
 
+
 def main():
 
   (lambda:1)()
+
+  zzz = 1
+  del zzz
 
   a = 1; b = 2
   (a, b) = (b, a)
@@ -130,7 +134,7 @@ def main():
   a = 1
   a %= 1
 
-  a = []
+  a = [0, 1]
   a[0] = 1
 
   a = [1]
@@ -202,8 +206,11 @@ def main():
 
   for a in (1,2): break
 
-  with open("1.txt") as f:
-    print f.read()
+  try:
+    with open("1.txt") as f:
+      print f.read()
+  except:
+      pass
 
   class a: pass
 
@@ -296,8 +303,6 @@ def main():
   finally:
     a = 3
 
-  raise ValueError
-
   a = [1,2,3,4]
   b = a[::-1]
 
@@ -307,9 +312,15 @@ def main():
     global xyz
     pass
 
+  raise ValueError
+
 
 def fc():
   a = 1
+  zyx = set()
+  zyx.add("hello")
+  zyx.add("abc")
+  zyx.remove("hello")
   def g():
     return a + 1
   return g()
@@ -358,7 +369,7 @@ def loly():
   f()
 
   mylist = [1, 1, 1, 2, 2, 3]
-  z ={x for x in mylist if mylist.count(x) >= 2}
+  z = {x for x in mylist if mylist.count(x) >= 2}
   a = {x for x in 'abracadabra' if x not in 'abc'}
   set([20, 0])
 
@@ -375,5 +386,9 @@ a = foo()
 print a.next()
 print a.next()
 
+
 def myfunc(alist):
-  return len(alist)
+    return len(alist)
+
+
+main()

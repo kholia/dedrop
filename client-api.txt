@@ -1,0 +1,44 @@
+Client Registration
+-------------------
+
+1. The Dropbox client generates a host_key value and sends the following request to the Dropbox server.
+
+POST /cli_link_nonce_gen HTTP/1.1
+Host: client-lb.dropbox.com
+Accept-Encoding: identity
+Content-Length: 56
+X-DBX-RETRY: 1
+X-Dropbox-Locale: en_US
+User-Agent: DropboxDesktopClient/34.4.22 (Linux; 4.12.9-200.fc25.x86_64; x64; en_US)
+Connection: keep-alive
+X-DBX-REQ-ID: 9b34fba8c581428f9397cfc45d0021c9
+X-Dropbox-User-Agent: DropboxDesktopClient/34.4.22 (Linux; 4.12.9-200.fc25.x86_64; x64; en_US)
+Content-type: application/x-www-form-urlencoded
+
+host_key=5e7effe2d7c6107c213a09d915b27214&cli_nonce=None
+
+
+HTTP/1.1 200 OK
+Server: nginx
+Date: Sat, 16 Sep 2017 07:24:34 GMT
+Content-Type: text/plain
+Transfer-Encoding: chunked
+Connection: keep-alive
+Vary: Accept-Encoding
+Vary: Accept-Encoding
+Cache-Control: no-cache, no-store
+Pragma: no-cache
+X-Content-Type-Options: nosniff
+X-Db-Timeout: 60
+X-Dropbox-Request-Id: b81e5c1bec11c0efad94a0e4efd99c5a
+X-Frame-Options: SAMEORIGIN
+X-Server-Response-Time: 24
+
+{"nonce": "b6f9b0fb5101eb41714ed12d0dfd50d1", "chillout": 4.097595663856157e-08, "nonce_uri": "https://www.dropbox.com/cli_link_nonce?nonce=b6f9b0fb5101eb41714ed12d0dfd50d1"}
+
+2. The Dropbox client opens the nonce_uri link in the brower, and then authorizes the client to connect to the signed-in Dropbox account.
+
+Fetch List
+----------
+
+To be done.

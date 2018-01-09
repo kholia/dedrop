@@ -1,7 +1,6 @@
 import os
 import tempfile
 import zipfile
-from copy import deepcopy
 import dedrop
 import time
 
@@ -16,7 +15,7 @@ This module contains functions that can read and write Python values in a binary
 # the "sandboxed" process.  It must work for Python2 as well.
 
 import types
-from _codecs import utf_8_decode, utf_8_encode
+from _codecs import utf_8_encode
 
 TYPE_NULL     = '0'
 TYPE_NONE     = 'N'
@@ -265,7 +264,6 @@ opcode_map = {
     129 : 255, 130 : 255, 131 : 255, 132 : 255, 133 : 140, 134 : 141, 135 : 142, 136 : 143,
     137 : 255, 138 : 255, 139 : 255, 140 : 145, 141 : 146, 142 : 147}
 
-
 """
 opcode_map = {
     0: 79, 1: 78, 2: 77, 3: 76, 4: 75, 5: 74, 6: 73, 7: 72, 8: 71, 9: 70, 10:
@@ -292,9 +290,11 @@ def remap_opcodes(code):
     i = 0
     while i < len(code):
         op = code[i]
-        new_code = opcode_map.get(op)
+        new_code = opcode_map.get(op, None)
+        if new_code is None:
+            print("Missing mapping for %s!" % op)
         code[i] = new_code
-        i += (new_code >= 90 and 3 or 1) #opcode.HAVE_ARGUMENT:
+        i += (new_code >= 90 and 3 or 1)  # opcode.HAVE_ARGUMENT:
     return str(code)
 
 def dump_code(self, x):
