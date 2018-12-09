@@ -18,6 +18,9 @@ Web-based Presentation
 Reversing Dropbox
 =================
 
+0. Note: For handling modern (late 2018) Dropbox versions use "dedrop-ng" which
+   is included in this repository.
+
 1. Download Dropbox and extract it.
 
    ::

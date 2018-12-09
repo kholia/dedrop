@@ -1,0 +1,34 @@
+Downloading old versions of Dropbox
+-----------------------------------
+
+http://clientupdates.dropboxstatic.com/dbx-releng/client/dropbox-lnx.x86_64-23.4.19.tar.gz
+
+https://dl.dropboxusercontent.com/u/17/Dropbox%2034.4.20.exe
+
+Tweak the above URLs according to your needs.
+
+Dropbox >= 34.4.20
+------------------
+
+I have not analyzed Dropbox versions between 23.4.19 and 34.4.20.
+
+The .dropbox-dist/dropbox-lnx.x86_64-34.4.20/dropbox file is no longer a ZIP file. This file seems to be a single-file combination of CPython + SQLite 3 + OpenSSL projects.
+
+The obfuscated Python bytecode seems to be present in the python-packages.zip file.
+
+The new versions of Dropbox can be decompiled by using the following steps,
+
+$ export BLOB_PATH=.dropbox-dist/dropbox-lnx.x86_64-34.4.20/python-packages.zip
+
+$ LD_PRELOAD=`pwd`/libdedrop.so .dropbox-dist/dropboxd
+
+Decompile the decrypted .pyc files with uncompyle6.
+
+It is also possible to decompile the python-packages.zip file from the Windows version of Dropbox under Linux by using this method.
+
+Sniffing Dropbox traffic
+------------------------
+
+Build DynamoRIO and use the included "ssljack" plugin.
+
+$ ~/dynamorio/build/bin64/drrun -c libssljack.so -- ~/.dropbox-dist/dropbox-lnx.x86_64-34.4.20/dropbox
