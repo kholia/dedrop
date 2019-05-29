@@ -28,10 +28,13 @@ def decrypt_pyc(pyc_file, new_pyc_file=None):
     with open(new_pyc_file, "wb") as f:
         # Note: getting the version magic right is crucial!
         # f.write(b'3\r\r\n')  # won't work when original bytecode version corresponds to python 3.5.4
-        f.write(b'\x17\r\r\n')
+        f.write(b'B\r\r\n')  # valid for python 3.7.2
         # We don't care about a timestamp
         f.write(b'\x00\x00\x00\x00')
+
         f.write(b'\x00\x00\x00\x00')  # required for modern python version
+        f.write(b'\x00\x00\x00\x00')  # required for modern python versions, xxx
+
         bytecode = dedrop.bytecode(pyc_code)
         x = marshal3.dumps(pyc_code)
         f.write(x)

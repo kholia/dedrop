@@ -71,7 +71,7 @@ int findCoCodeOffset()
 
         // printf("%02x: 0x%08x\n", i, probe);
         if (probe == needle) {
-            printf("co_code offset found : %d\n", i);
+            printf("co_code offset found: %d\n", i);
             return i;
         }
     }
@@ -107,7 +107,8 @@ void *thread()
     }
 
     // execute setup code
-    PyRun_SimpleString("import importlib; print(importlib._bootstrap_external._get_supported_file_loaders()); import dedrop; import sys; sys.path.append(''); print(sys.modules['dedrop']); import marshal3; print(marshal3.dumps('CHECK_MARSHAL_MODULE'))");
+    // PyRun_SimpleString("import importlib; print(importlib._bootstrap_external._get_supported_file_loaders()); import dedrop; import sys; sys.path.append(''); print(sys.modules['dedrop']); import marshal3; print(marshal3.dumps('CHECK_MARSHAL_MODULE'))");
+    PyRun_SimpleString("import importlib; print(importlib._bootstrap_external._get_supported_file_loaders()); import dedrop; import sys; sys.path.append(''); print(sys.modules['dedrop']); import marshal3");
     char dirty[256];
     sprintf(dirty, "dedrop.init(%u)", coCodeOffset);
     PyRun_SimpleString(dirty);

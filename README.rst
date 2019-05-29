@@ -15,11 +15,18 @@ Web-based Presentation
 
   (includes video now!)
 
+Status
+======
+
+We are able to handle Dropbox version 73.4.118 from 29-May-2019.
+
 Reversing Dropbox
 =================
 
-0. Note: For handling modern (late 2018) Dropbox versions use "dedrop-ng" which
+0. Note: For handling modern (> late 2018) Dropbox versions use "dedrop-ng" which
    is included in this repository.
+
+   https://github.com/kholia/dedrop/tree/master/src/dedrop-ng
 
 1. Download Dropbox and extract it.
 

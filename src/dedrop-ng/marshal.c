@@ -14,14 +14,30 @@
 #include "marshal.h"
 #include "hashtable.h"
 
+// debug
 #include <stddef.h>
+
+/*[clinic input]
+module marshal
+[clinic start generated code]*/
+/*[clinic end generated code: output=da39a3ee5e6b4b0d input=c982b7930dee17db]*/
+
+#include "marshal.c.h"
+
+#include "map.h"
 
 /* High water mark to determine when the marshalled object is dangerously deep
  * and risks coring the interpreter.  When the object stack gets this deep,
  * raise an exception instead of continuing.
  * On Windows debug builds, reduce this value.
+ *
+ * BUG: https://bugs.python.org/issue33720
+ * On Windows PGO builds, the r_object function overallocates its stack and
+ * can cause a stack overflow. We reduce the maximum depth for all Windows
+ * releases to protect against this.
+ * #if defined(MS_WINDOWS) && defined(_DEBUG)
  */
-#if defined(MS_WINDOWS) && defined(_DEBUG)
+#if defined(MS_WINDOWS)
 #define MAX_MARSHAL_STACK_DEPTH 1000
 #else
 #define MAX_MARSHAL_STACK_DEPTH 2000
@@ -34,6 +50,9 @@
 #define TYPE_STOPITER           'S'
 #define TYPE_ELLIPSIS           '.'
 #define TYPE_INT                'i'
+/* TYPE_INT64 is not generated anymore.
+   Supported for backward compatibility only. */
+#define TYPE_INT64              'I'
 #define TYPE_FLOAT              'f'
 #define TYPE_BINARY_FLOAT       'g'
 #define TYPE_COMPLEX            'x'
@@ -132,7 +151,7 @@ w_string(const char *s, Py_ssize_t n, WFILE *p)
     m = p->end - p->ptr;
     if (p->fp != NULL) {
         if (n <= m) {
-            Py_MEMCPY(p->ptr, s, n);
+            memcpy(p->ptr, s, n);
             p->ptr += n;
         }
         else {
@@ -142,7 +161,7 @@ w_string(const char *s, Py_ssize_t n, WFILE *p)
     }
     else {
         if (n <= m || w_reserve(p, n - m)) {
-            Py_MEMCPY(p->ptr, s, n);
+            memcpy(p->ptr, s, n);
             p->ptr += n;
         }
     }
@@ -265,10 +284,10 @@ w_ref(PyObject *v, char *flag, WFILE *p)
     if (Py_REFCNT(v) == 1)
         return 0;
 
-    entry = _Py_hashtable_get_entry(p->hashtable, v);
+    entry = _Py_HASHTABLE_GET_ENTRY(p->hashtable, v);
     if (entry != NULL) {
         /* write the reference index to the stream */
-        _Py_HASHTABLE_ENTRY_READ_DATA(p->hashtable, &w, sizeof(w), entry);
+        _Py_HASHTABLE_ENTRY_READ_DATA(p->hashtable, entry, w);
         /* we don't store "long" indices in the dict */
         assert(0 <= w && w <= 0x7fffffff);
         w_byte(TYPE_REF, p);
@@ -298,7 +317,7 @@ err:
 static void
 w_complex_object(PyObject *v, char flag, WFILE *p);
 
-/* Bytecode object - Modified by Dropbox
+/* Bytecode object - Modified by Dropbox 62.4.103 (Decompile PyCode_CheckLineNumber function to get to this PyCodeObject structure)
  *
  * 00000000 PyCodeObject    struc ; (sizeof=0x90, align=0x8, copyof_175)
  * 00000000 ob_base         PyObject ?
@@ -330,36 +349,88 @@ w_complex_object(PyObject *v, char flag, WFILE *p);
  * 00000088 co_weakreflist  dq ?                    ; offset
  * 00000090 PyCodeObject    ends
  * 00000090
+
+typedef struct {
+    PyObject_HEAD
+    int co_argcount;            // #arguments, except *args
+    int co_kwonlyargcount;      // #keyword only arguments
+    int co_nlocals;             // #local variables
+    int co_stacksize;           // #entries needed for evaluation stack
+    int co_flags;               // CO_..., see below
+    int filler1;
+    PyObject *co_consts;        // list (constants used)
+    PyObject *co_names;         // list of strings (names used)
+    PyObject *co_varnames;      // tuple of strings (local variable names)
+    PyObject *co_freevars;      // tuple of strings (free variable names)
+    PyObject *co_cellvars;      // tuple of strings (cell variable names)
+    unsigned char *co_cell2arg; // Maps cell vars which are arguments.
+    PyObject *co_code;          // instruction opcodes
+    PyObject *co_filename;      // unicode (where it was loaded from)
+    PyObject *co_name;          // unicode (name, for reference)
+    int co_firstlineno;         // first source line number
+    int filler2;
+    PyObject *co_lnotab;        // string (encoding addr<->lineno mapping) See
+                                   Objects/lnotab_notes.txt for details.
+    void *co_zombieframe;     // for optimization only (see frameobject.c)
+    PyObject *co_weakreflist;   // to support weakrefs to code objects
+} PyCodeObjectNew;
+*/
+
+/* Bytecode object - Modified by Dropbox 72.4.136 (Decompile PyCode_CheckLineNumber function to get to this PyCodeObject structure)
+ *
+ * 00000000 PyCodeObject    struc ; (sizeof=0x90, align=0x8, copyof_175)
+ * 00000000 ob_base         PyObject ?
+ * 00000010 co_argcount     dd ?
+ * 00000014 co_kwonlyargcount dd ?
+ * 00000018 co_nlocals      dd ?
+ * 0000001C co_stacksize    dd ?
+ * 00000020 co_flags        dd ?
+ * 00000024 co_firstlineno  dd ?
+ * 00000028 co_consts       dq ?                    ; offset
+ * 00000030 co_names        dq ?                    ; offset
+ * 00000038 co_varnames     dq ?                    ; offset
+ * 00000040 co_freevars     dq ?                    ; offset
+ * 00000048 co_cellvars     dq ?                    ; offset
+ * 00000050 co_cell2arg     dq ?                    ; offset
+ * 00000058 co_code         dq ?                    ; offset
+ * 00000060 co_filename     dq ?                    ; offset
+ * 00000068 co_name         dq ?                    ; offset
+ * 00000070 co_lnotab       dq ?
+ * 00000078 co_zombieframe  dq ?                    ; offset
+ * 00000080 co_weakreflist  dq ?                    ; offset
+ * 00000088 co_extra        dq ?                    ; offset
+ * 00000090 PyCodeObject    ends
+ * 00000090
  */
 
 typedef struct {
     PyObject_HEAD
-    int co_argcount;            /* #arguments, except *args */
-    int co_kwonlyargcount;      /* #keyword only arguments */
-    int co_nlocals;             /* #local variables */
-    int co_stacksize;           /* #entries needed for evaluation stack */
-    int co_flags;               /* CO_..., see below */
-    int filler1;
-    PyObject *co_consts;        /* list (constants used) */
-    PyObject *co_names;         /* list of strings (names used) */
-    PyObject *co_varnames;      /* tuple of strings (local variable names) */
-    PyObject *co_freevars;      /* tuple of strings (free variable names) */
-    PyObject *co_cellvars;      /* tuple of strings (cell variable names) */
-    unsigned char *co_cell2arg; /* Maps cell vars which are arguments. */
-    PyObject *co_code;          /* instruction opcodes */
-    PyObject *co_filename;      /* unicode (where it was loaded from) */
-    PyObject *co_name;          /* unicode (name, for reference) */
-    int co_firstlineno;         /* first source line number */
-    int filler2;
-    PyObject *co_lnotab;        /* string (encoding addr<->lineno mapping) See
-                                   Objects/lnotab_notes.txt for details. */
-    void *co_zombieframe;     /* for optimization only (see frameobject.c) */
-    PyObject *co_weakreflist;   /* to support weakrefs to code objects */
+    int co_argcount;            // #arguments, except *args
+    int co_kwonlyargcount;      // #keyword only arguments
+    int co_nlocals;             // #local variables
+    int co_stacksize;           // #entries needed for evaluation stack
+    int co_flags;               // CO_..., see below
+    int co_firstlineno;
+    PyObject *co_consts;        // list (constants used)
+    PyObject *co_names;         // list of strings (names used)
+    PyObject *co_varnames;      // tuple of strings (local variable names)
+    PyObject *co_freevars;      // tuple of strings (free variable names)
+    PyObject *co_cellvars;      // tuple of strings (cell variable names)
+    Py_ssize_t *co_cell2arg; // Maps cell vars which are arguments.
+    PyObject *co_code;          // instruction opcodes
+    PyObject *co_filename;      // unicode (where it was loaded from)
+    PyObject *co_name;          // unicode (name, for reference)
+    PyObject *co_lnotab;        // string (encoding addr<->lineno mapping) See
+    void *co_zombieframe;       // for optimization only (see frameobject.c)
+    PyObject *co_weakreflist;   // to support weakrefs to code objects
+    void *co_extra;
 } PyCodeObjectNew;
+
 
 static void
 w_object(PyObject *v, WFILE *p)
 {
+    // puts("<<< In w_object >>>");
     char flag = '\0';
 
     p->depth++;
@@ -592,7 +663,9 @@ w_complex_object(PyObject *v, char flag, WFILE *p)
     }
     else if (PyCode_Check(v)) {
         PyCodeObjectNew *co = (PyCodeObjectNew *)v;
-        unsigned char opcode_map[255] = { 59, 79, 72, 62, 255, 68, 20, 87, 2, 255, 255, 84, 70, 1, 50, 73, 17, 255, 5, 255, 27, 3, 255, 29, 67, 255, 83, 28, 66, 255, 255, 16, 15, 255, 77, 80, 22, 19, 52, 255, 86, 69, 75, 10, 89, 71, 255, 88, 82, 61, 81, 63, 23, 255, 4, 65, 76, 255, 255, 255, 255, 255, 24, 255, 255, 25, 78, 9, 255, 56, 12, 64, 60, 255, 255, 255, 255, 255, 11, 255, 255, 255, 255, 26, 255, 51, 255, 255, 57, 55, 90, 132, 110, 126, 124, 95, 116, 101, 111, 255, 255, 121, 131, 103, 130, 255, 102, 107, 120, 96, 106, 140, 141, 142, 109, 92, 113, 255, 143, 115, 122, 138, 255, 108, 134, 133, 98, 255, 112, 137, 136, 94, 91, 255, 93, 104, 100, 135, 114, 125, 97, 119, 105, 255, 144, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 150, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 154, 255, 255, 255, 255, 255, 145, 255, 147, 255, 149, 146, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 151, 255, 255, 255, 255, 255, 255, 255, 255, 148, 153, 255, 255, 255, 255, 152, 255, 255, 255, 255, 255 };
+        // unsigned char opcode_map[255] = { 59, 79, 72, 62, 255, 68, 20, 87, 2, 255, 255, 84, 70, 1, 50, 73, 17, 255, 5, 255, 27, 3, 255, 29, 67, 255, 83, 28, 66, 255, 255, 16, 15, 255, 77, 80, 22, 19, 52, 255, 86, 69, 75, 10, 89, 71, 255, 88, 82, 61, 81, 63, 23, 255, 4, 65, 76, 255, 255, 255, 255, 255, 24, 255, 255, 25, 78, 9, 255, 56, 12, 64, 60, 255, 255, 255, 255, 255, 11, 255, 255, 255, 255, 26, 255, 51, 255, 255, 57, 55, 90, 132, 110, 126, 124, 95, 116, 101, 111, 255, 255, 121, 131, 103, 130, 255, 102, 107, 120, 96, 106, 140, 141, 142, 109, 92, 113, 255, 143, 115, 122, 138, 255, 108, 134, 133, 98, 255, 112, 137, 136, 94, 91, 255, 93, 104, 100, 135, 114, 125, 97, 119, 105, 255, 144, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 150, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 154, 255, 255, 255, 255, 255, 145, 255, 147, 255, 149, 146, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 151, 255, 255, 255, 255, 255, 255, 255, 255, 148, 153, 255, 255, 255, 255, 152, 255, 255, 255, 255, 255 };
+	// unsigned char opcode_map[255] = { 255, 2, 23, 81, 255, 5, 55, 26, 67, 16, 83, 62, 255, 56, 71, 255, 255, 85, 80, 255, 24, 255, 84, 89, 1, 255, 255, 255, 63, 255, 255, 255, 255, 255, 255, 52, 65, 25, 86, 255, 82, 255, 51, 255, 70, 72, 68, 78, 87, 11, 50, 255, 66, 69, 255, 75, 60, 73, 22, 76, 255, 255, 27, 79, 57, 28, 4, 255, 77, 12, 255, 255, 64, 255, 19, 255, 17, 10, 255, 255, 15, 59, 255, 3, 61, 88, 255, 9, 20, 29, 90, 105, 107, 255, 93, 124, 255, 125, 255, 255, 113, 111, 91, 98, 126, 143, 133, 104, 108, 136, 119, 138, 130, 255, 102, 101, 92, 114, 255, 121, 135, 137, 94, 115, 255, 131, 255, 106, 97, 112, 116, 110, 103, 255, 255, 141, 142, 109, 255, 100, 95, 255, 132, 96, 144, 255, 150, 255, 255, 255, 146, 255, 255, 255, 255, 255, 255, 255, 255, 255, 151, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 161, 255, 147, 255, 255, 255, 155, 255, 255, 255, 255, 255, 255, 149, 255, 255, 255, 255, 255, 153, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 157, 148, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 160, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 145, 255, 154, 255, 255, 156, 255, 255 };
+
         char *str;
         unsigned char *buf;
         Py_ssize_t count;
@@ -611,10 +684,11 @@ w_complex_object(PyObject *v, char flag, WFILE *p)
             }
             if (str[z] >= 255)
                 printf("OOB access!");
-            if (new_code >= 90) // what is this stuff? HAVE_ARGUMENT. Disassemble frame_setlineno to find this value.
-                z += 3;
+            /* if (new_code >= 90) // what is this stuff? HAVE_ARGUMENT. Disassemble frame_setlineno to find this value.
+                z += 2;
             else
-                z += 1;
+                z += 1; */
+	    z += 2;
         }
         co_code_new = Py_BuildValue("y#", buf, count);
         W_TYPE(TYPE_CODE, p);
@@ -658,7 +732,8 @@ static int
 w_init_refs(WFILE *wf, int version)
 {
     if (version >= 3) {
-        wf->hashtable = _Py_hashtable_new(sizeof(int), _Py_hashtable_hash_ptr,
+        wf->hashtable = _Py_hashtable_new(sizeof(PyObject *), sizeof(int),
+                                          _Py_hashtable_hash_ptr,
                                           _Py_hashtable_compare_direct);
         if (wf->hashtable == NULL) {
             PyErr_NoMemory();
@@ -669,9 +744,13 @@ w_init_refs(WFILE *wf, int version)
 }
 
 static int
-w_decref_entry(_Py_hashtable_entry_t *entry, void *Py_UNUSED(data))
+w_decref_entry(_Py_hashtable_t *ht, _Py_hashtable_entry_t *entry,
+               void *Py_UNUSED(data))
 {
-    Py_XDECREF(entry->key);
+    PyObject *entry_key;
+
+    _Py_HASHTABLE_ENTRY_READ_KEY(ht, entry, entry_key);
+    Py_XDECREF(entry_key);
     return 0;
 }
 
@@ -701,7 +780,7 @@ PyMarshal_WriteLongToFile(long x, FILE *fp, int version)
 }
 
 void
-PyMarshal_WriteObjectToFile(PyObject *x, FILE *fp, int version)
+PyMarshal_WriteObjectToFileUs(PyObject *x, FILE *fp, int version)
 {
     char buf[BUFSIZ];
     WFILE wf;
@@ -722,7 +801,6 @@ typedef struct {
     FILE *fp;
     int depth;
     PyObject *readable;  /* Stream-like object being read from */
-    PyObject *current_filename;
     char *ptr;
     char *end;
     char *buf;
@@ -730,7 +808,7 @@ typedef struct {
     PyObject *refs;  /* a list */
 } RFILE;
 
-static char *
+static const char *
 r_string(Py_ssize_t n, RFILE *p)
 {
     Py_ssize_t read = -1;
@@ -756,11 +834,12 @@ r_string(Py_ssize_t n, RFILE *p)
         p->buf_size = n;
     }
     else if (p->buf_size < n) {
-        p->buf = PyMem_REALLOC(p->buf, n);
-        if (p->buf == NULL) {
+        char *tmp = PyMem_REALLOC(p->buf, n);
+        if (tmp == NULL) {
             PyErr_NoMemory();
             return NULL;
         }
+        p->buf = tmp;
         p->buf_size = n;
     }
 
@@ -816,7 +895,7 @@ r_byte(RFILE *p)
         c = getc(p->fp);
     }
     else {
-        char *ptr = r_string(1, p);
+        const char *ptr = r_string(1, p);
         if (ptr != NULL)
             c = *(unsigned char *) ptr;
     }
@@ -827,9 +906,9 @@ static int
 r_short(RFILE *p)
 {
     short x = -1;
-    unsigned char *buffer;
+    const unsigned char *buffer;
 
-    buffer = (unsigned char *) r_string(2, p);
+    buffer = (const unsigned char *) r_string(2, p);
     if (buffer != NULL) {
         x = buffer[0];
         x |= buffer[1] << 8;
@@ -843,9 +922,9 @@ static long
 r_long(RFILE *p)
 {
     long x = -1;
-    unsigned char *buffer;
+    const unsigned char *buffer;
 
-    buffer = (unsigned char *) r_string(4, p);
+    buffer = (const unsigned char *) r_string(4, p);
     if (buffer != NULL) {
         x = buffer[0];
         x |= (long)buffer[1] << 8;
@@ -857,6 +936,19 @@ r_long(RFILE *p)
 #endif
     }
     return x;
+}
+
+/* r_long64 deals with the TYPE_INT64 code. */
+static PyObject *
+r_long64(RFILE *p)
+{
+    const unsigned char *buffer = (const unsigned char *) r_string(8, p);
+    if (buffer == NULL) {
+        return NULL;
+    }
+    return _PyLong_FromByteArray(buffer, 8,
+                                 1 /* little endian */,
+                                 1 /* signed */);
 }
 
 static PyObject *
@@ -1058,6 +1150,11 @@ r_object(RFILE *p)
         R_REF(retval);
         break;
 
+    case TYPE_INT64:
+        retval = r_long64(p);
+        R_REF(retval);
+        break;
+
     case TYPE_LONG:
         retval = r_PyLong(p);
         R_REF(retval);
@@ -1065,7 +1162,8 @@ r_object(RFILE *p)
 
     case TYPE_FLOAT:
         {
-            char buf[256], *ptr;
+            char buf[256];
+            const char *ptr;
             double dx;
             n = r_byte(p);
             if (n == EOF) {
@@ -1088,9 +1186,9 @@ r_object(RFILE *p)
 
     case TYPE_BINARY_FLOAT:
         {
-            unsigned char *buf;
+            const unsigned char *buf;
             double x;
-            buf = (unsigned char *) r_string(8, p);
+            buf = (const unsigned char *) r_string(8, p);
             if (buf == NULL)
                 break;
             x = _PyFloat_Unpack8(buf, 1);
@@ -1103,7 +1201,8 @@ r_object(RFILE *p)
 
     case TYPE_COMPLEX:
         {
-            char buf[256], *ptr;
+            char buf[256];
+            const char *ptr;
             Py_complex c;
             n = r_byte(p);
             if (n == EOF) {
@@ -1140,15 +1239,15 @@ r_object(RFILE *p)
 
     case TYPE_BINARY_COMPLEX:
         {
-            unsigned char *buf;
+            const unsigned char *buf;
             Py_complex c;
-            buf = (unsigned char *) r_string(8, p);
+            buf = (const unsigned char *) r_string(8, p);
             if (buf == NULL)
                 break;
             c.real = _PyFloat_Unpack8(buf, 1);
             if (c.real == -1.0 && PyErr_Occurred())
                 break;
-            buf = (unsigned char *) r_string(8, p);
+            buf = (const unsigned char *) r_string(8, p);
             if (buf == NULL)
                 break;
             c.imag = _PyFloat_Unpack8(buf, 1);
@@ -1161,7 +1260,7 @@ r_object(RFILE *p)
 
     case TYPE_STRING:
         {
-            char *ptr;
+            const char *ptr;
             n = r_long(p);
             if (PyErr_Occurred())
                 break;
@@ -1185,6 +1284,7 @@ r_object(RFILE *p)
 
     case TYPE_ASCII_INTERNED:
         is_interned = 1;
+        /* fall through */
     case TYPE_ASCII:
         n = r_long(p);
         if (PyErr_Occurred())
@@ -1197,6 +1297,7 @@ r_object(RFILE *p)
 
     case TYPE_SHORT_ASCII_INTERNED:
         is_interned = 1;
+        /* fall through */
     case TYPE_SHORT_ASCII:
         n = r_byte(p);
         if (n == EOF) {
@@ -1206,7 +1307,7 @@ r_object(RFILE *p)
         }
     _read_ascii:
         {
-            char *ptr;
+            const char *ptr;
             ptr = r_string(n, p);
             if (ptr == NULL)
                 break;
@@ -1222,9 +1323,10 @@ r_object(RFILE *p)
 
     case TYPE_INTERNED:
         is_interned = 1;
+        /* fall through */
     case TYPE_UNICODE:
         {
-        char *buffer;
+        const char *buffer;
 
         n = r_long(p);
         if (PyErr_Occurred())
@@ -1351,41 +1453,52 @@ r_object(RFILE *p)
             PyErr_SetString(PyExc_ValueError, "bad marshal data (set size out of range)");
             break;
         }
-        v = (type == TYPE_SET) ? PySet_New(NULL) : PyFrozenSet_New(NULL);
-        if (type == TYPE_SET) {
-            R_REF(v);
-        } else {
-            /* must use delayed registration of frozensets because they must
-             * be init with a refcount of 1
-             */
-            idx = r_ref_reserve(flag, p);
-            if (idx < 0)
-                Py_CLEAR(v); /* signal error */
-        }
-        if (v == NULL)
-            break;
 
-        for (i = 0; i < n; i++) {
-            v2 = r_object(p);
-            if ( v2 == NULL ) {
-                if (!PyErr_Occurred())
-                    PyErr_SetString(PyExc_TypeError,
-                        "NULL object in marshal data for set");
-                Py_DECREF(v);
-                v = NULL;
+        if (n == 0 && type == TYPE_FROZENSET) {
+            /* call frozenset() to get the empty frozenset singleton */
+            v = _PyObject_CallNoArg((PyObject*)&PyFrozenSet_Type);
+            if (v == NULL)
                 break;
-            }
-            if (PySet_Add(v, v2) == -1) {
-                Py_DECREF(v);
-                Py_DECREF(v2);
-                v = NULL;
-                break;
-            }
-            Py_DECREF(v2);
+            R_REF(v);
+            retval = v;
         }
-        if (type != TYPE_SET)
-            v = r_ref_insert(v, idx, flag, p);
-        retval = v;
+        else {
+            v = (type == TYPE_SET) ? PySet_New(NULL) : PyFrozenSet_New(NULL);
+            if (type == TYPE_SET) {
+                R_REF(v);
+            } else {
+                /* must use delayed registration of frozensets because they must
+                 * be init with a refcount of 1
+                 */
+                idx = r_ref_reserve(flag, p);
+                if (idx < 0)
+                    Py_CLEAR(v); /* signal error */
+            }
+            if (v == NULL)
+                break;
+
+            for (i = 0; i < n; i++) {
+                v2 = r_object(p);
+                if ( v2 == NULL ) {
+                    if (!PyErr_Occurred())
+                        PyErr_SetString(PyExc_TypeError,
+                            "NULL object in marshal data for set");
+                    Py_DECREF(v);
+                    v = NULL;
+                    break;
+                }
+                if (PySet_Add(v, v2) == -1) {
+                    Py_DECREF(v);
+                    Py_DECREF(v2);
+                    v = NULL;
+                    break;
+                }
+                Py_DECREF(v2);
+            }
+            if (type != TYPE_SET)
+                v = r_ref_insert(v, idx, flag, p);
+            retval = v;
+        }
         break;
 
     case TYPE_CODE:
@@ -1449,18 +1562,6 @@ r_object(RFILE *p)
             filename = r_object(p);
             if (filename == NULL)
                 goto code_error;
-            if (PyUnicode_CheckExact(filename)) {
-                if (p->current_filename != NULL) {
-                    if (!PyUnicode_Compare(filename, p->current_filename)) {
-                        Py_DECREF(filename);
-                        Py_INCREF(p->current_filename);
-                        filename = p->current_filename;
-                    }
-                }
-                else {
-                    p->current_filename = filename;
-                }
-            }
             name = r_object(p);
             if (name == NULL)
                 goto code_error;
@@ -1543,7 +1644,6 @@ PyMarshal_ReadShortFromFile(FILE *fp)
     assert(fp);
     rf.readable = NULL;
     rf.fp = fp;
-    rf.current_filename = NULL;
     rf.end = rf.ptr = NULL;
     rf.buf = NULL;
     res = r_short(&rf);
@@ -1559,7 +1659,6 @@ PyMarshal_ReadLongFromFile(FILE *fp)
     long res;
     rf.fp = fp;
     rf.readable = NULL;
-    rf.current_filename = NULL;
     rf.ptr = rf.end = NULL;
     rf.buf = NULL;
     res = r_long(&rf);
@@ -1621,7 +1720,6 @@ PyMarshal_ReadObjectFromFile(FILE *fp)
     PyObject *result;
     rf.fp = fp;
     rf.readable = NULL;
-    rf.current_filename = NULL;
     rf.depth = 0;
     rf.ptr = rf.end = NULL;
     rf.buf = NULL;
@@ -1642,7 +1740,6 @@ PyMarshal_ReadObjectFromString(const char *str, Py_ssize_t len)
     PyObject *result;
     rf.fp = NULL;
     rf.readable = NULL;
-    rf.current_filename = NULL;
     rf.ptr = (char *)str;
     rf.end = (char *)str + len;
     rf.buf = NULL;
@@ -1658,7 +1755,7 @@ PyMarshal_ReadObjectFromString(const char *str, Py_ssize_t len)
 }
 
 PyObject *
-PyMarshal_WriteObjectToString(PyObject *x, int version)
+PyMarshal_WriteObjectToStringUs(PyObject *x, int version)
 {
     WFILE wf;
 
@@ -1701,42 +1798,62 @@ PyMarshal_WriteObjectToString(PyObject *x, int version)
 }
 
 /* And an interface for Python programs... */
+/*[clinic input]
+marshal.dump
+
+    value: object
+        Must be a supported type.
+    file: object
+        Must be a writeable binary file.
+    version: int(c_default="Py_MARSHAL_VERSION") = version
+        Indicates the data format that dump should use.
+    /
+
+Write the value on the open file.
+
+If the value has (or contains an object that has) an unsupported type, a
+ValueError exception is raised - but garbage data will also be written
+to the file. The object will not be properly read back by load().
+[clinic start generated code]*/
 
 static PyObject *
-marshal_dump(PyObject *self, PyObject *args)
+marshal_dump_impl(PyObject *module, PyObject *value, PyObject *file,
+                  int version)
+/*[clinic end generated code: output=aaee62c7028a7cb2 input=6c7a3c23c6fef556]*/
 {
     /* XXX Quick hack -- need to do this differently */
-    PyObject *x;
-    PyObject *f;
-    int version = Py_MARSHAL_VERSION;
     PyObject *s;
     PyObject *res;
     _Py_IDENTIFIER(write);
 
-    if (!PyArg_ParseTuple(args, "OO|i:dump", &x, &f, &version))
-        return NULL;
-    s = PyMarshal_WriteObjectToString(x, version);
+    s = PyMarshal_WriteObjectToStringUs(value, version);
     if (s == NULL)
         return NULL;
-    res = _PyObject_CallMethodId(f, &PyId_write, "O", s);
+    res = _PyObject_CallMethodIdObjArgs(file, &PyId_write, s, NULL);
     Py_DECREF(s);
     return res;
 }
 
-PyDoc_STRVAR(dump_doc,
-"dump(value, file[, version])\n\
-\n\
-Write the value on the open file. The value must be a supported type.\n\
-The file must be a writeable binary file.\n\
-\n\
-If the value has (or contains an object that has) an unsupported type, a\n\
-ValueError exception is raised - but garbage data will also be written\n\
-to the file. The object will not be properly read back by load()\n\
-\n\
-The version argument indicates the data format that dump should use.");
+/*[clinic input]
+marshal.load
+
+    file: object
+        Must be readable binary file.
+    /
+
+Read one value from the open file and return it.
+
+If no valid value is read (e.g. because the data has a different Python
+version's incompatible marshal format), raise EOFError, ValueError or
+TypeError.
+
+Note: If an object containing an unsupported type was marshalled with
+dump(), load() will substitute None for the unmarshallable type.
+[clinic start generated code]*/
 
 static PyObject *
-marshal_load(PyObject *self, PyObject *f)
+marshal_load(PyObject *module, PyObject *file)
+/*[clinic end generated code: output=f8e5c33233566344 input=c85c2b594cd8124a]*/
 {
     PyObject *data, *result;
     _Py_IDENTIFIER(read);
@@ -1749,20 +1866,19 @@ marshal_load(PyObject *self, PyObject *f)
      * This can be removed if we guarantee good error handling
      * for r_string()
      */
-    data = _PyObject_CallMethodId(f, &PyId_read, "i", 0);
+    data = _PyObject_CallMethodId(file, &PyId_read, "i", 0);
     if (data == NULL)
         return NULL;
     if (!PyBytes_Check(data)) {
         PyErr_Format(PyExc_TypeError,
-                     "f.read() returned not bytes but %.100s",
+                     "file.read() returned not bytes but %.100s",
                      data->ob_type->tp_name);
         result = NULL;
     }
     else {
         rf.depth = 0;
         rf.fp = NULL;
-        rf.readable = f;
-        rf.current_filename = NULL;
+        rf.readable = file;
         rf.ptr = rf.end = NULL;
         rf.buf = NULL;
         if ((rf.refs = PyList_New(0)) != NULL) {
@@ -1777,76 +1893,65 @@ marshal_load(PyObject *self, PyObject *f)
     return result;
 }
 
-PyDoc_STRVAR(load_doc,
-"load(file)\n\
-\n\
-Read one value from the open file and return it. If no valid value is\n\
-read (e.g. because the data has a different Python version's\n\
-incompatible marshal format), raise EOFError, ValueError or TypeError.\n\
-The file must be a readable binary file.\n\
-\n\
-Note: If an object containing an unsupported type was marshalled with\n\
-dump(), load() will substitute None for the unmarshallable type.");
+/*[clinic input]
+marshal.dumps
 
+    value: object
+        Must be a supported type.
+    version: int(c_default="Py_MARSHAL_VERSION") = version
+        Indicates the data format that dumps should use.
+    /
+
+Return the bytes object that would be written to a file by dump(value, file).
+
+Raise a ValueError exception if value has (or contains an object that has) an
+unsupported type.
+[clinic start generated code]*/
 
 static PyObject *
-marshal_dumps(PyObject *self, PyObject *args)
+marshal_dumps_impl(PyObject *module, PyObject *value, int version)
+/*[clinic end generated code: output=9c200f98d7256cad input=a2139ea8608e9b27]*/
 {
-    PyObject *x;
-    int version = Py_MARSHAL_VERSION;
-    if (!PyArg_ParseTuple(args, "O|i:dumps", &x, &version))
-        return NULL;
-    return PyMarshal_WriteObjectToString(x, version);
+    return PyMarshal_WriteObjectToStringUs(value, version);
 }
 
-PyDoc_STRVAR(dumps_doc,
-"dumps(value[, version])\n\
-\n\
-Return the bytes object that would be written to a file by dump(value, file).\n\
-The value must be a supported type. Raise a ValueError exception if\n\
-value has (or contains an object that has) an unsupported type.\n\
-\n\
-The version argument indicates the data format that dumps should use.");
+/*[clinic input]
+marshal.loads
 
+    bytes: Py_buffer
+    /
+
+Convert the bytes-like object to a value.
+
+If no valid value is found, raise EOFError, ValueError or TypeError.  Extra
+bytes in the input are ignored.
+[clinic start generated code]*/
 
 static PyObject *
-marshal_loads(PyObject *self, PyObject *args)
+marshal_loads_impl(PyObject *module, Py_buffer *bytes)
+/*[clinic end generated code: output=9fc65985c93d1bb1 input=6f426518459c8495]*/
 {
     RFILE rf;
-    Py_buffer p;
-    char *s;
-    Py_ssize_t n;
+    char *s = bytes->buf;
+    Py_ssize_t n = bytes->len;
     PyObject* result;
-    if (!PyArg_ParseTuple(args, "y*:loads", &p))
-        return NULL;
-    s = p.buf;
-    n = p.len;
     rf.fp = NULL;
     rf.readable = NULL;
-    rf.current_filename = NULL;
     rf.ptr = s;
     rf.end = s + n;
     rf.depth = 0;
     if ((rf.refs = PyList_New(0)) == NULL)
         return NULL;
     result = read_object(&rf);
-    PyBuffer_Release(&p);
     Py_DECREF(rf.refs);
     return result;
 }
 
-PyDoc_STRVAR(loads_doc,
-"loads(bytes)\n\
-\n\
-Convert the bytes-like object to a value. If no valid value is found,\n\
-raise EOFError, ValueError or TypeError. Extra bytes in the input are\n\
-ignored.");
-
 static PyMethodDef marshal_methods[] = {
-    {"dump",            marshal_dump,   METH_VARARGS,   dump_doc},
-    {"load",            marshal_load,   METH_O,         load_doc},
-    {"dumps",           marshal_dumps,  METH_VARARGS,   dumps_doc},
-    {"loads",           marshal_loads,  METH_VARARGS,   loads_doc},
+    MARSHAL_DUMP_METHODDEF
+    MARSHAL_LOAD_METHODDEF
+    MARSHAL_DUMPS_METHODDEF
+    MARSHAL_LOADS_METHODDEF
     {NULL,              NULL}           /* sentinel */
 };
 

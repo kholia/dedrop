@@ -7,7 +7,8 @@ jump_table = dict()
 switch_map = {}
 
 for func in idautils.Functions():
-    if 'PyEval_EvalFrameEx' == idc.GetFunctionName(func):
+    # if 'PyEval_EvalFrameEx' == idc.GetFunctionName(func):
+    if '_PyEval_EvalFrameDefault' == idc.GetFunctionName(func):
         print('[+] Found target function!')
         myfunc = func
         break

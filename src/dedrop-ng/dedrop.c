@@ -34,6 +34,7 @@ unsigned int coCodeOffset;
  */
 static PyObject *dedrop_decrypt(PyObject *dummy, PyObject *args)
 {
+    // Compare this to "run_pyc_file" method from upstream
     const char *path;
 
     if (!PyArg_ParseTuple(args, "s", &path))
@@ -56,6 +57,9 @@ static PyObject *dedrop_decrypt(PyObject *dummy, PyObject *args)
     (void) PyMarshal_ReadLongFromFile(f);
 
     /* NOTE: Skip "size parameter" added in Python 3.3 */
+    (void) PyMarshal_ReadLongFromFile(f);
+
+    // XXX
     (void) PyMarshal_ReadLongFromFile(f);
 
     /* Here we call function from dropbox binary, yeah! */
@@ -119,7 +123,7 @@ static PyObject *dedrop_bytecode(PyObject *dummy, PyObject *args)
         PyObject *co_code = FIELD(code, coCodeOffset, PyObject *);
 
         Py_XINCREF(co_code);
-        //printf("    co_code: 0x%08x\n", (unsigned int) co_code);
+        // printf("    co_code: 0x%08x\n", (unsigned int)co_code);
         return co_code;
     }
 
