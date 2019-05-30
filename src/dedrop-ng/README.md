@@ -58,6 +58,41 @@ try:
 ...
 ```
 
+```
+$ make; BLOB_PATH=.dropbox-dist/dropbox-lnx.x86_64-73.4.118/python-packages-37.zip LD_PRELOAD=`pwd`/libdedrop.so .dropbox-dist/dropboxd
+...
+dropbox: locating interpreter
+dropbox: logging to /tmp/dropbox-antifreeze-QSZxXw
+dropbox: initializing
+dropbox: initializing python 3.7.2
+dropbox: setting program path '/home/ubuntu/dedrop/src/dedrop-ng/.dropbox-dist/dropbox-lnx.x86_64-73.4.118/dropbox'
+dropbox: setting home path '/home/ubuntu/dedrop/src/dedrop-ng/.dropbox-dist/dropbox-lnx.x86_64-73.4.118'
+dropbox: setting python path '/home/ubuntu/dedrop/src/dedrop-ng/.dropbox-dist/dropbox-lnx.x86_64-73.4.118:/home/ubuntu/dedrop/src/dedrop-ng/.dropbox-dist/dropbox-lnx.x86_64-73.4.118/python-packages-37.zip'
+dropbox: python initialized
+dropbox: running dropbox
+dropbox: setting args
+dropbox: applying overrides
+dropbox: running main script
+Initing coCodeOffset with 88
+...
+Hi, this is the payload 2!
+3.7.2 (default, May  6 2019, 16:31:02)
+[GCC 4.8.4]
+
+:) :) :) Having Fun Yet?
+
+
+    magic: 0x0a0d3452
+[+] writing to /home/ubuntu/dedrop/src/dedrop-ng/pyc_decrypted/__future__.pyc
+    magic: 0x0a0d3452
+[+] writing to /home/ubuntu/dedrop/src/dedrop-ng/pyc_decrypted/_bootlocale.pyc
+    magic: 0x0a0d3452
+[+] writing to /home/ubuntu/dedrop/src/dedrop-ng/pyc_decrypted/_collections_abc.pyc
+    magic: 0x0a0d3452
+[+] writing to /home/ubuntu/dedrop/src/dedrop-ng/pyc_decrypted/_compat_pickle.pyc
+...
+```
+
 
 #### More Notes
 

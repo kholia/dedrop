@@ -19,7 +19,7 @@ volatile int magicSpellCasted;
 unsigned int coCodeOffset;
 
 typeof(PyMarshal_ReadLastObjectFromFile) *PyMarshal_ReadLastObjectFromFile_ = NULL;
-typeof(Py_CompileStringExFlags) *Py_CompileStringExFlags_ = NULL;
+// typeof(Py_CompileStringExFlags) *Py_CompileStringExFlags_ = NULL;
 
 /* FIXME: I'm now puzzled why I see an error about this one if I try to call it directly - somehow it doesn't resolve */
 typeof(PyGILState_Ensure) *PyGILState_Ensure_ = NULL;
@@ -96,7 +96,7 @@ void *thread()
     PyGILState_Ensure_ = dlsym(RTLD_DEFAULT, "PyGILState_Ensure");
     PyGILState_Release_ = dlsym(RTLD_DEFAULT, "PyGILState_Release");
     PyUnicode_FromString_ = dlsym(RTLD_DEFAULT, "PyUnicode_FromString");
-    Py_CompileStringExFlags_ = dlsym(RTLD_DEFAULT, "Py_CompileString");
+    // Py_CompileStringExFlags_ = dlsym(RTLD_DEFAULT, "Py_CompileStringExFlags_");
 
     // this is critical
     gstate = PyGILState_Ensure_();

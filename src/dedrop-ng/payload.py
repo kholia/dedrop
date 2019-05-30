@@ -96,3 +96,23 @@ if blob_path:
                 print(str(e))
 
         print("\n:) :) :) w00t! \n\n")
+
+# Follwing stuff is WIP
+py_file = os.environ.get('OPALL')
+
+def dump_encrypted_pyc(py_file):
+    pyc_code = dedrop.load(py_file)
+    out = "eopall.pyc"
+    print("[+] writing to %s" % out)
+    with open(out, "wb") as f:
+        f.write(b'B\r\r\n')  # valid for python 3.7.2
+        # We don't care about a timestamp
+        f.write(b'\x00\x00\x00\x00')
+        f.write(b'\x00\x00\x00\x00')  # required for modern python version
+        f.write(b'\x00\x00\x00\x00')  # required for modern python versions, xxx
+        x = marshal3.dumps(pyc_code)  # todo: skip opcode remapping
+        f.write(x)
+
+if py_file:
+    print("dumping encrypted bytecode ;)")
+    dump_encrypted_pyc(py_file)

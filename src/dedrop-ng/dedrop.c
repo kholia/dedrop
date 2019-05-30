@@ -157,5 +157,6 @@ static struct PyModuleDef dedrop_definition = {
 PyMODINIT_FUNC PyInit_dedrop(void)
 {
     Py_Initialize();
+
     return PyModule_Create(&dedrop_definition);
 }
