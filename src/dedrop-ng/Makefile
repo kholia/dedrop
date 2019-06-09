@@ -7,7 +7,7 @@ OFLAGS_32 := elf32-i386 -B i386
 OFLAGS_64 := elf64-x86-64 -B i386:x86-64
 
 # Update me
-VER := 73.4.118
+VER := 74.4.115
 
 CFLAGS=-Wall -ggdb -fPIC
 
