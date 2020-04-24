@@ -1,13 +1,32 @@
 #### Dedrop-NG
 
 A modern port of `dedrop` to reverse engineer modern Dropbox versions (e.g.
-Dropbox 74.4.115 from 09-Jun-2019).
+Dropbox 95.4.441 from 09-Jun-2019).
 
 
 #### Setup
 
-I am running Ubuntu 19.04 LTS 64-bit which has Python 3.7. On older Ubuntu
-versions, install `Python 3.7.2` via `pyenv` (https://github.com/pyenv/pyenv-installer).
+I am running Ubuntu 20.04 LTS 64-bit which has Python 3.8.1. We need Python 3.7.5.
+
+```
+$ strings .dropbox-dist/dropbox-lnx.x86_64-95.4.441/dropbox | grep "initializing python"
+dropbox: initializing python 3.7.5
+```
+
+Install `Python 3.7.5` via `pyenv` (https://github.com/pyenv/pyenv-installer).
+
+E.g.
+
+```
+echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bash_profile
+echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bash_profile
+echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init -)"\nfi' >> ~/.bash_profile
+
+source ~/.bash_profile
+
+pyenv install 3.7.5
+pyenv local 3.7.5
+```
 
 ```
 $ sudo apt install python3-dev python3-pip -y
@@ -17,9 +36,9 @@ $ pip3 install --user uncompyle6
 $ pwd
 ...dedrop/src/dedrop-ng
 
-$ wget https://clientupdates.dropboxstatic.com/dbx-releng/client/dropbox-lnx.x86_64-74.4.115.tar.gz
+$ wget https://clientupdates.dropboxstatic.com/dbx-releng/client/dropbox-lnx.x86_64-95.4.441.tar.gz
 
-$ tar -xzf dropbox-lnx.x86_64-74.4.115.tar.gz
+$ tar -xzf dropbox-lnx.x86_64-95.4.441.tar.gz
 
 $ make
 ```
